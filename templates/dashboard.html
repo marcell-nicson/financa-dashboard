@@ -379,6 +379,8 @@
 
 <script>
 const fmt = n => n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+let txLoaded    = false;
+let chartsOk   = false;
 
 // ── NAVIGATION ──────────────────────────────────────────
 function goTo(page, el) {
@@ -416,7 +418,6 @@ function counter(el, val, dur=1000) {
 }
 
 // ── INIT ────────────────────────────────────────────────
-let balanceData = {available:0, investivel:0, entradas:0, saidas:0};
 
 (function init() {
   const now=new Date(), h=now.getHours();
@@ -474,7 +475,6 @@ async function loadBalance() {
 }
 
 // ── TRANSACTIONS ─────────────────────────────────────────
-let txLoaded = false;
 async function loadTransactions() {
   if (txLoaded) return;
   try {
@@ -506,7 +506,6 @@ async function loadTransactions() {
 }
 
 // ── CHARTS ──────────────────────────────────────────────
-let chartsOk = false;
 function renderCharts() {
   if (chartsOk) return;
   chartsOk = true;
