@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Financeiro — Marcell</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg:      #0e0e16;
+      --surface: #16161f;
+      --border:  rgba(255,255,255,0.07);
+      --blue:    #00b1ea;
+      --green:   #00e676;
+      --red:     #ff4569;
+      --yellow:  #ffd600;
+      --purple:  #7c4dff;
+      --muted:   #6b6b88;
+      --text:    #eeeeff;
+      --sw:      220px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sw); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 28px 16px;
+      position: fixed; top: 0; left: 0; height: 100vh; z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 36px; }
+    .logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, var(--blue), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .logo-text { font-size: 0.95rem; font-weight: 600; }
+    .logo-sub  { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .nav-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 0 10px; margin-bottom: 8px; }
+    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 0.88rem; color: var(--muted); transition: all 0.2s; margin-bottom: 2px; user-select: none; }
+    .nav-item:hover  { background: rgba(255,255,255,0.04); color: var(--text); }
+    .nav-item.active { background: rgba(0,177,234,0.1); color: var(--blue); }
+    .nav-sep { height: 1px; background: var(--border); margin: 16px 0; }
+    .sidebar-bottom { margin-top: auto; padding: 0 8px; }
+    .account-pill { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+    .acc-name { font-size: 0.82rem; font-weight: 500; }
+    .acc-bank { font-size: 0.72rem; color: var(--muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-left: auto; animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(0,230,118,0.4); } 50% { opacity:.7; box-shadow:0 0 0 4px rgba(0,230,118,0); } }
+
+    /* MAIN */
+    .main { margin-left: var(--sw); flex: 1; padding: 32px 36px; max-width: calc(100vw - var(--sw)); overflow-x: hidden; }
+    .page { display: none; animation: fadeIn 0.3s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* HEADER */
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .page-title    { font-size: 1.5rem; font-weight: 700; }
+    .page-subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+    .header-badge  { font-size: 0.78rem; padding: 6px 14px; border-radius: 50px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+
+    /* STATUS BAR */
+    .status-bar { border-radius: 12px; padding: 11px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; transition: all 0.4s; }
+    .s-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite; }
+
+    /* CARDS */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .card  { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-2px); }
+    .card-top   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .card-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .chip { font-size: 0.68rem; padding: 3px 8px; border-radius: 50px; font-weight: 500; }
+    .chip-g { background: rgba(0,230,118,0.1); color: var(--green); }
+    .chip-r { background: rgba(255,69,105,0.1); color: var(--red); }
+    .chip-b { background: rgba(0,177,234,0.1);  color: var(--blue); }
+    .chip-p { background: rgba(124,77,255,0.1); color: var(--purple); }
+    .card-value { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    .card-delta { font-size: 0.78rem; color: var(--muted); }
+    .up   { color: var(--green); }
+    .down { color: var(--red); }
+
+    /* PANEL */
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    .panel-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+    .panel-title .muted { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .g2 { grid-template-columns: 1fr; } }
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* TRANSACTIONS */
+    .tx { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .tx:last-child { border-bottom: none; }
+    .tx-l { display: flex; align-items: center; gap: 12px; }
+    .tx-ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; }
+    .tx-name { font-size: 0.86rem; font-weight: 500; }
+    .tx-date { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+    .tx-val  { font-size: 0.9rem; font-weight: 600; }
+    .cr { color: var(--green); }
+    .db { color: var(--red); }
+
+    /* ALERTS */
+    .alert { border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; border: 1px solid; }
+    .alert.warn   { background: rgba(255,214,0,0.05);  border-color: rgba(255,214,0,0.15); }
+    .alert.danger { background: rgba(255,69,105,0.05); border-color: rgba(255,69,105,0.15); }
+    .alert.info   { background: rgba(0,177,234,0.05);  border-color: rgba(0,177,234,0.15); }
+    .alert.ok     { background: rgba(0,230,118,0.05);  border-color: rgba(0,230,118,0.15); }
+    .alert-body h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+    .alert.warn   h4 { color: var(--yellow); }
+    .alert.danger h4 { color: var(--red); }
+    .alert.info   h4 { color: var(--blue); }
+    .alert.ok     h4 { color: var(--green); }
+    .alert-body p  { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    /* INVESTMENTS */
+    .inv { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .inv:last-child { border-bottom: none; }
+    .inv-l  { display: flex; align-items: center; gap: 12px; }
+    .inv-ico { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .inv-name { font-size: 0.88rem; font-weight: 600; }
+    .inv-desc { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+    .risk { font-size: 0.65rem; padding: 2px 7px; border-radius: 50px; margin-top: 4px; display: inline-block; font-weight: 500; }
+    .risk.low  { background: rgba(0,230,118,0.1); color: var(--green); }
+    .risk.mid  { background: rgba(255,214,0,0.1);  color: var(--yellow); }
+    .risk.high { background: rgba(255,69,105,0.1); color: var(--red); }
+    .inv-r    { text-align: right; }
+    .inv-ret  { font-size: 0.9rem; font-weight: 700; color: var(--green); }
+    .inv-ret.neg { color: var(--red); }
+    .inv-sim  { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+    /* SIMULATOR */
+    .sim-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .sim-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.82rem; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .sim-btn:hover, .sim-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(0,177,234,0.08); }
+    .sim-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+    .sim-r { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .sim-r .lbl  { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+    .sim-r .val  { font-size: 1.1rem; font-weight: 700; color: var(--green); }
+    .sim-r .gain { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+    /* LEGEND */
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+    .leg { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--muted); }
+    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* CONFIG FORM */
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+    .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.86rem; outline: none; font-family: 'Inter', sans-serif; transition: border-color 0.2s; }
+    .form-input:focus { border-color: var(--blue); }
+    .btn { border: none; border-radius: 10px; padding: 10px 22px; font-size: 0.86rem; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; transition: opacity 0.2s; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-secondary { background: var(--purple); color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .feedback { display: none; border-radius: 10px; padding: 12px 16px; margin-top: 12px; font-size: 0.84rem; }
+    .sync-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.82rem; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .sync-btn:hover { border-color: var(--green); color: var(--green); }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">💰</div>
+    <div>
+      <div class="logo-text">Finança</div>
+      <div class="logo-sub">Mercado Pago</div>
+    </div>
+  </div>
+
+  <div class="nav-label">Menu</div>
+  <div class="nav-item active" onclick="goTo('home',this)"><span>🏠</span> Início</div>
+  <div class="nav-item" onclick="goTo('gastos',this)"><span>📊</span> Gastos</div>
+  <div class="nav-item" onclick="goTo('investimentos',this)"><span>📈</span> Investimentos</div>
+  <div class="nav-item" onclick="goTo('alertas',this)">
+    <span>🔔</span> Alertas
+    <span id="alert-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:0.65rem;padding:1px 6px;border-radius:50px">!</span>
+  </div>
+
+  <div class="nav-sep"></div>
+  <div class="nav-label">Conta</div>
+  <div class="nav-item" onclick="goTo('configurar',this)"><span>⚙️</span> Configurar</div>
+
+  <div class="sidebar-bottom">
+    <div class="account-pill">
+      <div class="avatar">MN</div>
+      <div>
+        <div class="acc-name" id="acc-name">Marcell</div>
+        <div class="acc-bank" id="acc-bank">Mercado Pago</div>
+      </div>
+      <div class="status-dot" id="status-dot" style="background:var(--muted)"></div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- STATUS BAR -->
+  <div id="status-bar" class="status-bar" style="background:rgba(107,107,136,0.05);border:1px solid rgba(107,107,136,0.15)">
+    <div class="s-dot" id="s-dot" style="background:var(--muted)"></div>
+    <span id="s-msg" style="color:var(--muted)">Verificando conexão...</span>
+    <button class="sync-btn" id="sync-btn" onclick="manualSync()" style="margin-left:auto">
+      🔄 Sincronizar
+    </button>
+  </div>
+
+  <!-- ══ HOME ══ -->
+  <div id="page-home" class="page active">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="greeting">Carregando...</div>
+        <div class="page-subtitle" id="today-date"></div>
+      </div>
+      <div class="header-badge" id="last-sync">—</div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px;background:linear-gradient(135deg,#16161f,#1c1c2e);border-color:rgba(0,177,234,0.15)">
+      <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Saldo disponível</div>
+      <div style="font-size:2.6rem;font-weight:700;letter-spacing:-1px" id="hero-balance">R$ —</div>
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--muted)">
+        Potencial investível: <span id="hero-inv" style="color:var(--purple);font-weight:600">—</span>
+        &nbsp;·&nbsp; Rende ~<span id="hero-rend" style="color:var(--green);font-weight:600">—</span>/mês no CDB
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-top"><div class="card-label">Entradas</div><div class="chip chip-g" id="chip-month">—</div></div>
+        <div class="card-value cr" id="c-entrada">R$ —</div>
+        <div class="card-delta" id="d-entrada">Mês atual</div>
+      </div>
+      <div class="card">
+        <div class="card-top"><div class="card-label">Saídas</div><div class="chip chip-r">Mês</div></div>
+        <div class="card-value db" id="c-saida">R$ —</div>
+        <div class="card-delta" id="d-saida">Mês atual</div>
+      </div>
+      <div class="card">
+        <div class="card-top"><div class="card-label">Disponível</div><div class="chip chip-b">Líquido</div></div>
+        <div class="card-value" style="color:var(--blue)" id="c-disp">R$ —</div>
+        <div class="card-delta">Após saídas do mês</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Evolução do saldo <span class="muted">Dados históricos</span></div>
+      <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══ GASTOS ══ -->
+  <div id="page-gastos" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Gastos</div><div class="page-subtitle">Categorias e transações recentes</div></div>
+      <div class="header-badge" id="gastos-month">—</div>
+    </div>
+
+    <div class="g2" style="margin-bottom:16px">
+      <div class="panel">
+        <div class="panel-title">Por categoria <span class="muted">Mês atual</span></div>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+        <div class="legend" id="pie-legend"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Entradas vs. Saídas <span class="muted">6 meses</span></div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Últimas transações <span class="muted" id="tx-count">—</span></div>
+      <div id="tx-list"><div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center">Carregando...</div></div>
+    </div>
+  </div>
+
+  <!-- ══ INVESTIMENTOS ══ -->
+  <div id="page-investimentos" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Investimentos</div><div class="page-subtitle">Faça seu dinheiro render</div></div>
+      <div class="header-badge" id="inv-disponivel">—</div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">Simulador <span class="muted" id="sim-base">base: R$ —</span></div>
+      <div class="sim-bar">
+        <button class="sim-btn" onclick="sim(1,this)">1 mês</button>
+        <button class="sim-btn" onclick="sim(3,this)">3 meses</button>
+        <button class="sim-btn" onclick="sim(6,this)">6 meses</button>
+        <button class="sim-btn active" onclick="sim(12,this)">12 meses</button>
+        <button class="sim-btn" onclick="sim(24,this)">24 meses</button>
+      </div>
+      <div class="sim-results" id="sim-results"></div>
+    </div>
+
+    <div class="g2">
+      <div class="panel">
+        <div class="panel-title">Renda Fixa <span class="muted">Baixo risco</span></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(0,230,118,0.08)">🏛️</div><div><div class="inv-name">Tesouro Selic</div><div class="inv-desc">Governo Federal · liquidez diária</div><span class="risk low">Risco mínimo</span></div></div><div class="inv-r"><div class="inv-ret">10,65% a.a.</div><div class="inv-sim" id="sim-tesouro">—</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(0,177,234,0.08)">🏦</div><div><div class="inv-name">CDB 110% CDI</div><div class="inv-desc">Banco digital · liquidez diária</div><span class="risk low">Risco baixo</span></div></div><div class="inv-r"><div class="inv-ret">11,7% a.a.</div><div class="inv-sim" id="sim-cdb">—</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(124,77,255,0.08)">💼</div><div><div class="inv-name">MP Reserva</div><div class="inv-desc">Mercado Pago · 100% CDI</div><span class="risk low">Risco baixo</span></div></div><div class="inv-r"><div class="inv-ret">10,65% a.a.</div><div class="inv-sim" id="sim-mp">—</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(255,214,0,0.08)">📄</div><div><div class="inv-name">LCI / LCA</div><div class="inv-desc">Isento de IR · 6-12 meses</div><span class="risk low">Risco baixo</span></div></div><div class="inv-r"><div class="inv-ret">12,1% a.a.</div><div class="inv-sim" id="sim-lci">—</div></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Criptomoedas <span class="muted">Ao vivo</span></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(255,145,0,0.08)">₿</div><div><div class="inv-name">Bitcoin (BTC)</div><div class="inv-desc" id="btc-price">Carregando...</div><span class="risk mid">Risco médio-alto</span></div></div><div class="inv-r"><div class="inv-ret" id="btc-chg">—</div><div class="inv-sim">Âncora do mercado</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(124,77,255,0.08)">⟠</div><div><div class="inv-name">Ethereum (ETH)</div><div class="inv-desc" id="eth-price">Carregando...</div><span class="risk mid">Risco médio-alto</span></div></div><div class="inv-r"><div class="inv-ret" id="eth-chg">—</div><div class="inv-sim">Smart contracts</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(20,241,149,0.08)">◎</div><div><div class="inv-name">Solana (SOL)</div><div class="inv-desc" id="sol-price">Carregando...</div><span class="risk high">Risco alto</span></div></div><div class="inv-r"><div class="inv-ret" id="sol-chg">—</div><div class="inv-sim">Alta velocidade</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(243,186,47,0.08)">🔶</div><div><div class="inv-name">BNB</div><div class="inv-desc" id="bnb-price">Carregando...</div><span class="risk high">Risco alto</span></div></div><div class="inv-r"><div class="inv-ret" id="bnb-chg">—</div><div class="inv-sim">Ecossistema Binance</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ALERTAS ══ -->
+  <div id="page-alertas" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Alertas</div><div class="page-subtitle">Orientações baseadas nos seus dados</div></div>
+    </div>
+    <div id="alerts-container">
+      <div style="color:var(--muted);font-size:0.85rem;padding:20px 0">Carregando análise...</div>
+    </div>
+  </div>
+
+  <!-- ══ CONFIGURAR ══ -->
+  <div id="page-configurar" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Configurar</div><div class="page-subtitle">API do Mercado Pago e e-mail diário</div></div>
+    </div>
+
+    <div class="g2">
+      <!-- TOKEN -->
+      <div class="panel">
+        <div class="panel-title">🔑 Mercado Pago</div>
+        <div class="form-group">
+          <label class="form-label">Access Token</label>
+          <input id="inp-token" class="form-input" type="password" placeholder="APP_USR-..."/>
+        </div>
+        <button class="btn btn-primary" id="btn-token" onclick="saveToken()">Conectar</button>
+        <div id="fb-token" class="feedback"></div>
+
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Como obter</div>
+          <div style="font-size:0.82rem;color:var(--muted);line-height:1.8">
+            1. Acesse <a href="https://www.mercadopago.com.br/developers" target="_blank" style="color:var(--blue)">mercadopago.com.br/developers</a><br>
+            2. Suas integrações → selecione o app<br>
+            3. Credenciais de produção → <strong style="color:var(--text)">Access Token</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMAIL -->
+      <div class="panel">
+        <div class="panel-title">📧 E-mail Diário (8:30)</div>
+        <div class="form-group">
+          <label class="form-label">Seu Gmail (remetente)</label>
+          <input id="inp-gmail" class="form-input" type="email" placeholder="seu@gmail.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha de App do Gmail</label>
+          <input id="inp-gpass" class="form-input" type="password" placeholder="xxxx xxxx xxxx xxxx"/>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:6px">
+            Gere em: Conta Google → Segurança → Senhas de app
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destinatário</label>
+          <input id="inp-dest" class="form-input" type="email" placeholder="marcellnicson@gmail.com"/>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="btn-email" onclick="saveEmail()">Salvar</button>
+          <button class="btn btn-secondary" onclick="testEmail()">Testar e-mail agora</button>
+        </div>
+        <div id="fb-email" class="feedback"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const fmt = n => n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+// ── NAVIGATION ──────────────────────────────────────────
+function goTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'investimentos') { loadCrypto(); renderSim(12); }
+  if (page === 'gastos')        { loadTransactions(); renderCharts(); }
+  if (page === 'alertas')       { renderAlerts(); }
+}
+
+// ── STATUS BAR ──────────────────────────────────────────
+function setStatus(msg, type='info') {
+  const bar = document.getElementById('status-bar');
+  const dot = document.getElementById('s-dot');
+  const txt = document.getElementById('s-msg');
+  const c   = {info:'#00b1ea', ok:'#00e676', error:'#ff4569', warn:'#ffd600'}[type] || '#6b6b88';
+  bar.style.background  = c + '08';
+  bar.style.borderColor = c + '20';
+  dot.style.background  = c;
+  txt.style.color       = c;
+  txt.textContent       = msg;
+}
+
+// ── COUNTER ─────────────────────────────────────────────
+function counter(el, val, dur=1000) {
+  if (!el) return;
+  let v=0, step=Math.max(val/(dur/16),1);
+  const t=setInterval(()=>{
+    v=Math.min(v+step,val);
+    el.textContent='R$ '+fmt(v);
+    if(v>=val) clearInterval(t);
+  },16);
+}
+
+// ── INIT ────────────────────────────────────────────────
+let balanceData = {available:0, investivel:0, entradas:0, saidas:0};
+
+(function init() {
+  const now=new Date(), h=now.getHours();
+  document.getElementById('greeting').textContent =
+    (h<12?'Bom dia':h<18?'Boa tarde':'Boa noite')+', Marcell 👋';
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const month = now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('chip-month').textContent = month;
+  document.getElementById('gastos-month').textContent = month;
+  document.getElementById('last-sync').textContent =
+    'Atualizado às '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  checkStatus();
+  loadBalance();
+  loadCrypto();
+  renderSim(12);
+  loadEmailConfig();
+})();
+
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if (d.mp_connected) {
+      setStatus('✓ Mercado Pago conectado' + (d.email_configured ? ' · E-mail configurado' : ''), 'ok');
+      document.getElementById('status-dot').style.background = 'var(--green)';
+      document.getElementById('acc-bank').textContent = 'Conectado';
+    } else {
+      setStatus('Modo demonstração — configure o token em ⚙️ Configurar', 'warn');
+    }
+  } catch(e) { setStatus('Erro de conexão com o servidor', 'error'); }
+}
+
+// ── BALANCE ─────────────────────────────────────────────
+async function loadBalance() {
+  try {
+    const r = await fetch('/api/balance');
+    const d = await r.json();
+    balanceData = d;
+
+    counter(document.getElementById('hero-balance'), d.available);
+    counter(document.getElementById('c-entrada'), d.entradas);
+    counter(document.getElementById('c-saida'),   d.saidas);
+    counter(document.getElementById('c-disp'),    d.available);
+
+    document.getElementById('hero-inv').textContent  = 'R$ '+fmt(d.investivel);
+    document.getElementById('hero-rend').textContent = 'R$ '+fmt(d.investivel*0.117/12);
+    document.getElementById('inv-disponivel').textContent = 'Disponível: R$ '+fmt(d.investivel);
+    document.getElementById('sim-base').textContent = 'base: R$ '+fmt(d.investivel);
+
+    renderSim(12);
+    renderAlerts();
+  } catch(e) { console.warn('[Balance]', e); }
+}
+
+// ── TRANSACTIONS ─────────────────────────────────────────
+let txLoaded = false;
+async function loadTransactions() {
+  if (txLoaded) return;
+  try {
+    const r   = await fetch('/api/transactions?limit=20');
+    const txs = await r.json();
+    const el  = document.getElementById('tx-list');
+    const ct  = document.getElementById('tx-count');
+    if (ct) ct.textContent = txs.length + ' registros';
+
+    if (!txs.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center">Nenhuma transação ainda. Faça uma sincronização.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    txs.forEach(t => {
+      const cr = t.amount > 0;
+      const dt = t.date_created ? new Date(t.date_created).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+      el.innerHTML += `
+        <div class="tx">
+          <div class="tx-l">
+            <div class="tx-ico" style="background:rgba(${cr?'0,230,118':'255,69,105'},0.1)">${cr?'💰':'💸'}</div>
+            <div><div class="tx-name">${t.description||'Transação'}</div><div class="tx-date">${dt}</div></div>
+          </div>
+          <div class="tx-val ${cr?'cr':'db'}">${cr?'+ ':'- '}R$ ${fmt(Math.abs(t.amount))}</div>
+        </div>`;
+    });
+    txLoaded = true;
+  } catch(e) { console.warn('[Tx]', e); }
+}
+
+// ── CHARTS ──────────────────────────────────────────────
+let chartsOk = false;
+function renderCharts() {
+  if (chartsOk) return;
+  chartsOk = true;
+
+  const cats   = ['Alimentação','Transporte','Lazer','Streaming','Mercado','Outros'];
+  const vals   = [890,330,420,180,640,660];
+  const colors = ['#ff4569','#00b1ea','#7c4dff','#ffd600','#00e676','#ff9100'];
+
+  new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:cats,datasets:[{data:vals,backgroundColor:colors.map(c=>c+'bb'),borderColor:colors,borderWidth:2,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'66%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` R$ ${fmt(c.parsed)} (${Math.round(c.parsed/4120*100)}%)`}}},
+      animation:{duration:900}}
+  });
+  const leg=document.getElementById('pie-legend');
+  cats.forEach((l,i)=>{ leg.innerHTML+=`<div class="leg"><div class="leg-dot" style="background:${colors[i]}"></div>${l}</div>`; });
+
+  new Chart(document.getElementById('barChart'),{
+    type:'bar',
+    data:{labels:['Out','Nov','Dez','Jan','Fev','Mar'],
+      datasets:[
+        {label:'Entradas',data:[5200,5800,6100,6400,6100,6840],backgroundColor:'rgba(0,230,118,0.5)',borderRadius:6},
+        {label:'Saídas',  data:[3800,3960,4200,3600,3680,4120],backgroundColor:'rgba(255,69,105,0.5)',borderRadius:6}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#6b6b88',font:{size:11},boxWidth:16}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b6b88'}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b6b88',callback:v=>'R$'+(v/1000).toFixed(0)+'k'}}},
+      animation:{duration:900}}
+  });
+
+  new Chart(document.getElementById('lineChart'),{
+    type:'line',
+    data:{labels:['Out','Nov','Dez','Jan','Fev','Mar'],
+      datasets:[{label:'Saldo',data:[1890,2340,1780,3100,2560,2720],
+        borderColor:'#00b1ea',backgroundColor:'rgba(0,177,234,0.06)',fill:true,tension:0.4,
+        pointBackgroundColor:'#00b1ea',pointRadius:4,pointHoverRadius:7,borderWidth:2.5}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b6b88'}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b6b88',callback:v=>'R$'+(v/1000).toFixed(1)+'k'}}},
+      animation:{duration:1000}}
+  });
+}
+renderCharts();
+
+// ── ALERTS ──────────────────────────────────────────────
+function renderAlerts() {
+  const d   = balanceData;
+  const pct = d.entradas > 0 ? (d.saidas / d.entradas * 100) : 0;
+  const el  = document.getElementById('alerts-container');
+  if (!el) return;
+
+  const alerts = [];
+  if (pct > 80)      alerts.push(['danger','🔴','Gastos críticos',`Saídas em ${pct.toFixed(0)}% das entradas. Revise seus gastos urgentemente.`]);
+  else if (pct > 65) alerts.push(['warn','⚠️','Ritmo de gastos alto',`Saídas em ${pct.toFixed(0)}% das entradas. Meta saudável: abaixo de 70%.`]);
+  else if (pct > 0)  alerts.push(['ok','✅','Gastos sob controle',`Saídas em ${pct.toFixed(0)}% das entradas. Continue assim!`]);
+  else               alerts.push(['info','ℹ️','Aguardando dados',`Sincronize sua conta para ver a análise real dos gastos.`]);
+
+  if (d.investivel > 500) alerts.push(['info','💡','Oportunidade de investimento',
+    `R$ ${fmt(d.investivel)} disponíveis. No CDB renderiam ~R$ ${fmt(d.investivel*0.117/12)}/mês.`]);
+
+  alerts.push(['ok','✅','Dashboard atualizado',`Dados sincronizados do Mercado Pago. Próxima atualização automática em ~1h.`]);
+
+  const badge = document.getElementById('alert-badge');
+  const urgente = alerts.filter(a=>a[0]==='danger'||a[0]==='warn').length;
+  if (badge) { badge.style.display = urgente ? 'inline' : 'none'; badge.textContent = urgente; }
+
+  el.innerHTML = alerts.map(([type,emoji,title,msg])=>`
+    <div class="alert ${type}">
+      <span style="font-size:1.2rem;flex-shrink:0">${emoji}</span>
+      <div class="alert-body"><h4>${title}</h4><p>${msg}</p></div>
+    </div>`).join('');
+}
+
+// ── SIMULATOR ───────────────────────────────────────────
+const invs = [
+  {name:'🏛️ Tesouro Selic', rate:0.1065},
+  {name:'🏦 CDB 110% CDI',  rate:0.1170},
+  {name:'💼 MP Reserva',    rate:0.1065},
+  {name:'📄 LCI / LCA',     rate:0.1210},
+];
+
+function sim(months, btn) {
+  document.querySelectorAll('.sim-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderSim(months);
+}
+
+function renderSim(months) {
+  const p  = balanceData.investivel || 1230;
+  const el = document.getElementById('sim-results');
+  if(!el) return;
+  el.innerHTML = '';
+  invs.forEach(inv=>{
+    const r=Math.pow(1+inv.rate,1/12)-1;
+    const total=p*Math.pow(1+r,months);
+    const gain=total-p;
+    el.innerHTML+=`<div class="sim-r"><div class="lbl">${inv.name}</div><div class="val">R$ ${fmt(total)}</div><div class="gain">+ R$ ${fmt(gain)}</div></div>`;
+  });
+  const sids=['sim-tesouro','sim-cdb','sim-mp','sim-lci'];
+  const rates=[0.1065,0.1170,0.1065,0.1210];
+  sids.forEach((id,i)=>{
+    const el2=document.getElementById(id);
+    if(el2){ const r=Math.pow(1+rates[i],1/12)-1; el2.textContent=`R$ ${fmt(p)} → R$ ${fmt(p*Math.pow(1+r,12))}/ano`; }
+  });
+}
+
+// ── CRYPTO ──────────────────────────────────────────────
+async function loadCrypto() {
+  try {
+    const r = await fetch('/api/crypto');
+    const d = await r.json();
+    const map = [['bitcoin','btc'],['ethereum','eth'],['solana','sol'],['binancecoin','bnb']];
+    map.forEach(([id,pfx])=>{
+      if(!d[id]) return;
+      const price=d[id].brl, chg=d[id].brl_24h_change, up=chg>=0;
+      const p=document.getElementById(pfx+'-price');
+      const c=document.getElementById(pfx+'-chg');
+      if(p) p.textContent='R$ '+fmt(price);
+      if(c){ c.textContent=(up?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%'; c.className='inv-ret'+(up?'':' neg'); }
+    });
+  } catch(e) { console.warn('[Crypto]',e); }
+}
+setInterval(loadCrypto, 60000);
+
+// ── SYNC MANUAL ─────────────────────────────────────────
+async function manualSync() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ Sincronizando...';
+  btn.disabled = true;
+  setStatus('Sincronizando com Mercado Pago...', 'info');
+  try {
+    const r = await fetch('/api/sync', {method:'POST'});
+    const d = await r.json();
+    if(d.ok){
+      setStatus(`✓ Sincronizado — ${d.fetched} movimentos, ${d.saved} novos`, 'ok');
+      txLoaded = false;
+      loadBalance();
+    } else {
+      setStatus(d.error || 'Erro no sync', 'error');
+    }
+  } catch(e) { setStatus('Erro ao sincronizar: '+e.message, 'error'); }
+  btn.textContent = '🔄 Sincronizar';
+  btn.disabled = false;
+}
+
+// ── SAVE TOKEN ──────────────────────────────────────────
+function feedback(id, msg, type) {
+  const el=document.getElementById(id);
+  if(!el) return;
+  const c={ok:'#00e676',error:'#ff4569',info:'#00b1ea',warn:'#ffd600'}[type]||'#00b1ea';
+  el.style.cssText=`display:block;background:${c}08;border:1px solid ${c}25;color:${c}`;
+  el.textContent=msg;
+}
+
+async function saveToken() {
+  const token = document.getElementById('inp-token').value.trim();
+  if(!token){ feedback('fb-token','Cole o Access Token no campo acima.','warn'); return; }
+  const btn=document.getElementById('btn-token');
+  btn.textContent='Conectando...'; btn.disabled=true;
+  feedback('fb-token','⏳ Verificando token...','info');
+  try {
+    const r=await fetch('/api/config/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+    const d=await r.json();
+    if(d.ok){
+      feedback('fb-token',`✅ Conectado! Conta: ${d.email||d.name}. Redirecionando...`,'ok');
+      setStatus('✓ Mercado Pago conectado como '+d.email,'ok');
+      document.getElementById('status-dot').style.background='var(--green)';
+      setTimeout(()=>{ goTo('home', document.querySelector('.nav-item')); loadBalance(); },1500);
+    } else {
+      feedback('fb-token','❌ '+d.error,'error');
+    }
+  } catch(e){ feedback('fb-token','❌ Erro: '+e.message,'error'); }
+  btn.textContent='Conectar'; btn.disabled=false;
+}
+
+// ── SAVE EMAIL ──────────────────────────────────────────
+async function loadEmailConfig() {
+  try {
+    const r=await fetch('/api/config/email');
+    const d=await r.json();
+    if(d.gmail_user)          document.getElementById('inp-gmail').value=d.gmail_user;
+    if(d.email_destinatario)  document.getElementById('inp-dest').value=d.email_destinatario;
+  } catch(e){}
+}
+
+async function saveEmail() {
+  const gmail=document.getElementById('inp-gmail').value.trim();
+  const pass =document.getElementById('inp-gpass').value.trim();
+  const dest =document.getElementById('inp-dest').value.trim();
+  if(!gmail||!pass){ feedback('fb-email','Preencha Gmail e Senha de App.','warn'); return; }
+  const btn=document.getElementById('btn-email');
+  btn.textContent='Salvando...'; btn.disabled=true;
+  try {
+    const r=await fetch('/api/config/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({gmail_user:gmail,gmail_app_password:pass,email_destinatario:dest})});
+    const d=await r.json();
+    d.ok ? feedback('fb-email','✅ Configurações salvas! E-mail será enviado às 8:30.','ok')
+          : feedback('fb-email','❌ '+d.error,'error');
+  } catch(e){ feedback('fb-email','❌ '+e.message,'error'); }
+  btn.textContent='Salvar'; btn.disabled=false;
+}
+
+async function testEmail() {
+  feedback('fb-email','⏳ Enviando e-mail de teste...','info');
+  try {
+    const r=await fetch('/api/test-email',{method:'POST'});
+    const d=await r.json();
+    d.ok ? feedback('fb-email','✅ '+d.message,'ok') : feedback('fb-email','❌ '+d.message,'error');
+  } catch(e){ feedback('fb-email','❌ '+e.message,'error'); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[Unit]
+Description=Dashboard Financeiro — Marcell
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/financa
+ExecStart=/var/www/financa/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5000 \
+    --timeout 60 \
+    --access-logfile /var/log/financa/access.log \
+    --error-logfile  /var/log/financa/error.log \
+    app:app
+Restart=always
+RestartSec=5
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
