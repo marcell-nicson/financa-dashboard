@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — Dashboard Financeiro</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0e0e16;
+      color: #eeeeff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #16161f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #00b1ea, #7c4dff);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .logo-text { font-size: 1.1rem; font-weight: 700; }
+    .logo-sub  { font-size: 0.72rem; color: #6b6b88; margin-top: 2px; }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: #6b6b88;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      background: #0e0e16;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: #eeeeff;
+      font-size: 0.9rem;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    input:focus { border-color: #00b1ea; }
+    button {
+      width: 100%;
+      background: #00b1ea;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      margin-top: 4px;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    .error {
+      background: rgba(255,69,105,0.08);
+      border: 1px solid rgba(255,69,105,0.2);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: #ff4569;
+      font-size: 0.84rem;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">💰</div>
+      <div>
+        <div class="logo-text">Finança</div>
+        <div class="logo-sub">Dashboard Pessoal</div>
+      </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <label>Usuário</label>
+      <input type="text" name="username" autofocus autocomplete="username" placeholder="seu usuário"/>
+      <label>Senha</label>
+      <input type="password" name="password" autocomplete="current-password" placeholder="••••••••"/>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</body>
+</html>
