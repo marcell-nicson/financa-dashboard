@@ -3,10 +3,10 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests as req
 import os
+import io
+import csv
+from datetime import datetime
 import database as db
-from mercadopago import MercadoPagoClient
-from scheduler import start_scheduler, sync_mercadopago
-import atexit
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
@@ -14,12 +14,6 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 # ── INIT ────────────────────────────────────────────────
 
 db.init_db()
-start_scheduler()
-
-@atexit.register
-def shutdown():
-    from scheduler import stop_scheduler
-    stop_scheduler()
 
 
 # ── AUTH ─────────────────────────────────────────────────
@@ -80,41 +74,9 @@ def index():
 @app.route('/api/status')
 @login_required
 def status():
-    token = db.get_config('mp_token')
     gmail = db.get_config('gmail_user')
     return jsonify({
-        'mp_connected':     bool(token),
         'email_configured': bool(gmail),
-        'demo_mode':        not bool(token),
-    })
-
-
-# ── CONFIG: TOKEN ────────────────────────────────────────
-
-@app.route('/api/config/token', methods=['POST'])
-@login_required
-def save_token():
-    data  = request.get_json(silent=True) or {}
-    token = data.get('token', '').strip()
-
-    if not token:
-        return jsonify({'error': 'Token não informado'}), 400
-
-    mp   = MercadoPagoClient(token)
-    user = mp.get_user()
-
-    if not user:
-        return jsonify({'error': 'Token inválido ou expirado.'}), 401
-
-    db.set_config('mp_token', token)
-
-    from threading import Thread
-    Thread(target=sync_mercadopago, daemon=True).start()
-
-    return jsonify({
-        'ok':   True,
-        'email': user.get('email', ''),
-        'name':  user.get('first_name', 'Usuário'),
     })
 
 
@@ -149,24 +111,121 @@ def get_email_config():
     })
 
 
-# ── SYNC MANUAL ──────────────────────────────────────────
+# ── IMPORT CSV ───────────────────────────────────────────
 
-@app.route('/api/sync', methods=['POST'])
+def parse_br_number(s):
+    """Convert Brazilian number format to float: '3.213,94' -> 3213.94"""
+    s = s.strip().replace('.', '').replace(',', '.')
+    return float(s)
+
+
+def parse_csv_mercadopago(content):
+    """
+    Parse Mercado Pago CSV export.
+    Returns (final_balance, movements_list) or raises ValueError.
+    """
+    lines = content.splitlines()
+
+    # Need at least 5 lines: header, data, blank, col headers, 1 transaction
+    if len(lines) < 4:
+        raise ValueError('Arquivo CSV com formato inválido (linhas insuficientes).')
+
+    # Line 1: column headers (INITIAL_BALANCE;CREDITS;DEBITS;FINAL_BALANCE)
+    # Line 2: summary values
+    summary_line = lines[1].strip()
+    if not summary_line:
+        raise ValueError('Linha de resumo (linha 2) está vazia.')
+
+    summary_parts = summary_line.split(';')
+    if len(summary_parts) < 4:
+        raise ValueError('Linha de resumo não tem 4 colunas esperadas.')
+
+    try:
+        final_balance = parse_br_number(summary_parts[3])
+    except (ValueError, IndexError) as e:
+        raise ValueError(f'Não foi possível converter FINAL_BALANCE: {e}')
+
+    # Line 3: blank, Line 4: transaction column headers
+    # Lines 5+: transactions
+    movements = []
+    for raw_line in lines[4:]:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        parts = line.split(';')
+        if len(parts) < 5:
+            continue
+
+        release_date    = parts[0].strip()
+        transaction_type = parts[1].strip()
+        reference_id    = parts[2].strip()
+        net_amount_str  = parts[3].strip()
+        # parts[4] is PARTIAL_BALANCE, not needed
+
+        if not release_date or not reference_id or not net_amount_str:
+            continue
+
+        try:
+            amount = parse_br_number(net_amount_str)
+        except ValueError:
+            continue
+
+        try:
+            date_iso = datetime.strptime(release_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+
+        tx_type = 'entrada' if amount > 0 else 'saida'
+
+        movements.append({
+            'id':           reference_id,
+            'description':  transaction_type,
+            'amount':       amount,
+            'type':         tx_type,
+            'date_created': date_iso,
+        })
+
+    return final_balance, movements
+
+
+@app.route('/api/import-csv', methods=['POST'])
 @login_required
-def sync():
-    token = db.get_config('mp_token')
-    if not token:
-        return jsonify({'error': 'Token do Mercado Pago não configurado'}), 400
+def import_csv():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nenhum arquivo enviado. Use o campo "file".'}), 400
 
-    mp        = MercadoPagoClient(token)
-    movements = mp.fetch_movements(limit=100)
-    saved     = db.save_transactions(movements)
-    balance   = mp.fetch_balance()
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'error': 'Nome de arquivo inválido.'}), 400
 
-    if balance is not None:
-        db.save_balance(balance)
+    raw = file.read()
 
-    return jsonify({'ok': True, 'fetched': len(movements), 'saved': saved, 'balance': balance})
+    # Try UTF-8 first, fallback to latin-1
+    try:
+        content = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        content = raw.decode('latin-1')
+
+    try:
+        final_balance, movements = parse_csv_mercadopago(content)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 422
+
+    parsed = len(movements)
+
+    if parsed == 0:
+        return jsonify({'error': 'Nenhuma transação encontrada no arquivo.'}), 422
+
+    saved = db.save_transactions(movements)
+    db.save_balance(final_balance)
+
+    return jsonify({
+        'ok':      True,
+        'parsed':  parsed,
+        'saved':   saved,
+        'balance': final_balance,
+    })
 
 
 # ── BALANCE ──────────────────────────────────────────────

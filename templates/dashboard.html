@@ -164,7 +164,7 @@
     <div class="logo-icon">💰</div>
     <div>
       <div class="logo-text">Finança</div>
-      <div class="logo-sub">Mercado Pago</div>
+      <div class="logo-sub">Extrato CSV</div>
     </div>
   </div>
 
@@ -187,7 +187,7 @@
       <div class="avatar">MN</div>
       <div>
         <div class="acc-name" id="acc-name">Marcell</div>
-        <div class="acc-bank" id="acc-bank">Mercado Pago</div>
+        <div class="acc-bank" id="acc-bank">Mercado Pago CSV</div>
       </div>
       <div class="status-dot" id="status-dot" style="background:var(--muted)"></div>
     </div>
@@ -199,11 +199,13 @@
   <!-- STATUS BAR -->
   <div id="status-bar" class="status-bar" style="background:rgba(107,107,136,0.05);border:1px solid rgba(107,107,136,0.15)">
     <div class="s-dot" id="s-dot" style="background:var(--muted)"></div>
-    <span id="s-msg" style="color:var(--muted)">Verificando conexão...</span>
-    <button class="sync-btn" id="sync-btn" onclick="manualSync()" style="margin-left:auto">
-      🔄 Sincronizar
+    <span id="s-msg" style="color:var(--muted)">Verificando configuração...</span>
+    <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvUpload(this)">
+    <button class="sync-btn" id="csv-btn" onclick="document.getElementById('csv-file-input').click()" style="margin-left:auto">
+      📂 Importar Extrato CSV
     </button>
   </div>
+  <div id="csv-feedback" style="display:none;border-radius:10px;padding:11px 16px;margin-bottom:10px;font-size:0.82rem;border:1px solid"></div>
 
   <!-- ══ HOME ══ -->
   <div id="page-home" class="page active">
@@ -324,26 +326,28 @@
   <!-- ══ CONFIGURAR ══ -->
   <div id="page-configurar" class="page">
     <div class="page-header">
-      <div><div class="page-title">Configurar</div><div class="page-subtitle">API do Mercado Pago e e-mail diário</div></div>
+      <div><div class="page-title">Configurar</div><div class="page-subtitle">Importação de extrato CSV e e-mail diário</div></div>
     </div>
 
     <div class="g2">
-      <!-- TOKEN -->
+      <!-- CSV IMPORT -->
       <div class="panel">
-        <div class="panel-title">🔑 Mercado Pago</div>
-        <div class="form-group">
-          <label class="form-label">Access Token</label>
-          <input id="inp-token" class="form-input" type="password" placeholder="APP_USR-..."/>
+        <div class="panel-title">📄 Importar Extrato CSV</div>
+        <div style="font-size:0.82rem;color:var(--muted);line-height:1.8;margin-bottom:16px">
+          Exporte o extrato do Mercado Pago em formato CSV e importe aqui para atualizar o saldo e as transações.
         </div>
-        <button class="btn btn-primary" id="btn-token" onclick="saveToken()">Conectar</button>
-        <div id="fb-token" class="feedback"></div>
+        <input type="file" id="csv-file-config" accept=".csv" style="display:none" onchange="handleCsvUpload(this)">
+        <button class="btn btn-primary" onclick="document.getElementById('csv-file-config').click()">
+          📂 Selecionar arquivo CSV
+        </button>
+        <div id="fb-csv" class="feedback"></div>
 
         <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
-          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Como obter</div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Como exportar</div>
           <div style="font-size:0.82rem;color:var(--muted);line-height:1.8">
-            1. Acesse <a href="https://www.mercadopago.com.br/developers" target="_blank" style="color:var(--blue)">mercadopago.com.br/developers</a><br>
-            2. Suas integrações → selecione o app<br>
-            3. Credenciais de produção → <strong style="color:var(--text)">Access Token</strong>
+            1. Acesse <a href="https://www.mercadopago.com.br/activities" target="_blank" style="color:var(--blue)">mercadopago.com.br/activities</a><br>
+            2. Filtre o período desejado<br>
+            3. Clique em <strong style="color:var(--text)">Baixar</strong> → <strong style="color:var(--text)">CSV</strong>
           </div>
         </div>
       </div>
@@ -442,12 +446,11 @@ async function checkStatus() {
   try {
     const r = await fetch('/api/status');
     const d = await r.json();
-    if (d.mp_connected) {
-      setStatus('✓ Mercado Pago conectado' + (d.email_configured ? ' · E-mail configurado' : ''), 'ok');
+    if (d.email_configured) {
+      setStatus('✓ E-mail configurado · Importe o extrato CSV para atualizar os dados', 'ok');
       document.getElementById('status-dot').style.background = 'var(--green)';
-      document.getElementById('acc-bank').textContent = 'Conectado';
     } else {
-      setStatus('Modo demonstração — configure o token em ⚙️ Configurar', 'warn');
+      setStatus('Importe o extrato CSV do Mercado Pago para atualizar os dados', 'info');
     }
   } catch(e) { setStatus('Erro de conexão com o servidor', 'error'); }
 }
@@ -485,7 +488,7 @@ async function loadTransactions() {
     if (ct) ct.textContent = txs.length + ' registros';
 
     if (!txs.length) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center">Nenhuma transação ainda. Faça uma sincronização.</div>';
+      el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center">Nenhuma transação ainda. Importe o extrato CSV do Mercado Pago.</div>';
       return;
     }
     el.innerHTML = '';
@@ -564,12 +567,12 @@ function renderAlerts() {
   if (pct > 80)      alerts.push(['danger','🔴','Gastos críticos',`Saídas em ${pct.toFixed(0)}% das entradas. Revise seus gastos urgentemente.`]);
   else if (pct > 65) alerts.push(['warn','⚠️','Ritmo de gastos alto',`Saídas em ${pct.toFixed(0)}% das entradas. Meta saudável: abaixo de 70%.`]);
   else if (pct > 0)  alerts.push(['ok','✅','Gastos sob controle',`Saídas em ${pct.toFixed(0)}% das entradas. Continue assim!`]);
-  else               alerts.push(['info','ℹ️','Aguardando dados',`Sincronize sua conta para ver a análise real dos gastos.`]);
+  else               alerts.push(['info','ℹ️','Aguardando dados',`Importe o extrato CSV do Mercado Pago para ver a análise real dos gastos.`]);
 
   if (d.investivel > 500) alerts.push(['info','💡','Oportunidade de investimento',
     `R$ ${fmt(d.investivel)} disponíveis. No CDB renderiam ~R$ ${fmt(d.investivel*0.117/12)}/mês.`]);
 
-  alerts.push(['ok','✅','Dashboard atualizado',`Dados sincronizados do Mercado Pago. Próxima atualização automática em ~1h.`]);
+  alerts.push(['info','ℹ️','Importação manual','Clique em "Importar Extrato CSV" na barra superior para atualizar os dados.']);
 
   const badge = document.getElementById('alert-badge');
   const urgente = alerts.filter(a=>a[0]==='danger'||a[0]==='warn').length;
@@ -633,55 +636,68 @@ async function loadCrypto() {
 }
 setInterval(loadCrypto, 60000);
 
-// ── SYNC MANUAL ─────────────────────────────────────────
-async function manualSync() {
-  const btn = document.getElementById('sync-btn');
-  btn.textContent = '⏳ Sincronizando...';
-  btn.disabled = true;
-  setStatus('Sincronizando com Mercado Pago...', 'info');
+// ── CSV IMPORT ───────────────────────────────────────────
+function showCsvFeedback(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const c = {ok:'#00e676', error:'#ff4569', info:'#00b1ea', warn:'#ffd600'}[type] || '#00b1ea';
+  el.style.cssText = `display:block;background:${c}08;border-color:${c}25;color:${c}`;
+  el.textContent = msg;
+}
+
+async function handleCsvUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('csv-btn');
+  if (btn) { btn.textContent = '⏳ Importando...'; btn.disabled = true; }
+  setStatus('Importando extrato CSV...', 'info');
+
+  // Reset feedback in both places
+  ['csv-feedback', 'fb-csv'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
-    const r = await fetch('/api/sync', {method:'POST'});
+    const r = await fetch('/api/import-csv', { method: 'POST', body: formData });
     const d = await r.json();
-    if(d.ok){
-      setStatus(`✓ Sincronizado — ${d.fetched} movimentos, ${d.saved} novos`, 'ok');
+    if (d.ok) {
+      const msg = `✅ Importado: ${d.parsed} transações lidas, ${d.saved} novas salvas. Saldo: R$ ${d.balance.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+      setStatus(msg, 'ok');
+      showCsvFeedback('csv-feedback', msg, 'ok');
+      showCsvFeedback('fb-csv', msg, 'ok');
       txLoaded = false;
       loadBalance();
     } else {
-      setStatus(d.error || 'Erro no sync', 'error');
+      const msg = '❌ ' + (d.error || 'Erro ao importar');
+      setStatus(msg, 'error');
+      showCsvFeedback('csv-feedback', msg, 'error');
+      showCsvFeedback('fb-csv', msg, 'error');
     }
-  } catch(e) { setStatus('Erro ao sincronizar: '+e.message, 'error'); }
-  btn.textContent = '🔄 Sincronizar';
-  btn.disabled = false;
+  } catch(e) {
+    const msg = '❌ Erro: ' + e.message;
+    setStatus(msg, 'error');
+    showCsvFeedback('csv-feedback', msg, 'error');
+    showCsvFeedback('fb-csv', msg, 'error');
+  }
+
+  // Reset the file input so the same file can be re-uploaded if needed
+  input.value = '';
+
+  if (btn) { btn.textContent = '📂 Importar Extrato CSV'; btn.disabled = false; }
 }
 
-// ── SAVE TOKEN ──────────────────────────────────────────
+// ── FEEDBACK HELPER ──────────────────────────────────────
 function feedback(id, msg, type) {
   const el=document.getElementById(id);
   if(!el) return;
   const c={ok:'#00e676',error:'#ff4569',info:'#00b1ea',warn:'#ffd600'}[type]||'#00b1ea';
   el.style.cssText=`display:block;background:${c}08;border:1px solid ${c}25;color:${c}`;
   el.textContent=msg;
-}
-
-async function saveToken() {
-  const token = document.getElementById('inp-token').value.trim();
-  if(!token){ feedback('fb-token','Cole o Access Token no campo acima.','warn'); return; }
-  const btn=document.getElementById('btn-token');
-  btn.textContent='Conectando...'; btn.disabled=true;
-  feedback('fb-token','⏳ Verificando token...','info');
-  try {
-    const r=await fetch('/api/config/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-    const d=await r.json();
-    if(d.ok){
-      feedback('fb-token',`✅ Conectado! Conta: ${d.email||d.name}. Redirecionando...`,'ok');
-      setStatus('✓ Mercado Pago conectado como '+d.email,'ok');
-      document.getElementById('status-dot').style.background='var(--green)';
-      setTimeout(()=>{ goTo('home', document.querySelector('.nav-item')); loadBalance(); },1500);
-    } else {
-      feedback('fb-token','❌ '+d.error,'error');
-    }
-  } catch(e){ feedback('fb-token','❌ Erro: '+e.message,'error'); }
-  btn.textContent='Conectar'; btn.disabled=false;
 }
 
 // ── SAVE EMAIL ──────────────────────────────────────────
