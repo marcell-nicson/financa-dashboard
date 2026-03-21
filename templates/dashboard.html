@@ -143,6 +143,32 @@
     .leg { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--muted); }
     .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+    /* CATEGORY BADGE */
+    .cat-badge { font-size: 0.65rem; padding: 2px 7px; border-radius: 50px; font-weight: 500; display: inline-block; margin-top: 3px; background: rgba(107,107,136,0.15); color: var(--muted); }
+    .cat-Rendimentos  { background: rgba(0,230,118,0.12);  color: var(--green); }
+    .cat-PIX          { background: rgba(0,177,234,0.12);  color: var(--blue); }
+    .cat-Alimentação  { background: rgba(255,145,0,0.12);  color: #ff9100; }
+    .cat-Transporte   { background: rgba(124,77,255,0.12); color: var(--purple); }
+    .cat-Saúde        { background: rgba(0,230,118,0.12);  color: var(--green); }
+    .cat-Lazer        { background: rgba(255,214,0,0.12);  color: var(--yellow); }
+    .cat-Moradia      { background: rgba(0,177,234,0.12);  color: var(--blue); }
+    .cat-Reserva      { background: rgba(124,77,255,0.12); color: var(--purple); }
+    .cat-Outros       { background: rgba(107,107,136,0.15); color: var(--muted); }
+
+    /* TX ACTION BUTTONS */
+    .tx-actions { display: flex; gap: 6px; align-items: center; }
+    .tx-action-btn { background: none; border: none; cursor: pointer; font-size: 0.82rem; padding: 4px 6px; border-radius: 6px; color: var(--muted); transition: all 0.15s; }
+    .tx-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .tx-action-btn.del:hover { color: var(--red); }
+
+    /* EDIT FORM INLINE */
+    .tx-edit-form { padding: 12px; background: var(--bg); border-radius: 10px; margin-top: 8px; border: 1px solid var(--border); }
+    .tx-edit-form input, .tx-edit-form select { width: 100%; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-size: 0.82rem; outline: none; font-family: 'Inter', sans-serif; }
+    .tx-edit-form input:focus, .tx-edit-form select:focus { border-color: var(--blue); }
+    .tx-edit-actions { display: flex; gap: 8px; }
+    .tx-edit-save { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; }
+    .tx-edit-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; font-family: 'Inter', sans-serif; }
+
     /* CONFIG FORM */
     .form-group { margin-bottom: 16px; }
     .form-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
@@ -225,6 +251,8 @@
         &nbsp;·&nbsp; Rende ~<span id="hero-rend" style="color:var(--green);font-weight:600">—</span>/mês no CDB
       </div>
     </div>
+
+    <div id="period-indicator" style="font-size:0.75rem;color:var(--muted);margin-bottom:10px;margin-top:-8px"></div>
 
     <div class="cards">
       <div class="card">
@@ -327,6 +355,24 @@
   <div id="page-configurar" class="page">
     <div class="page-header">
       <div><div class="page-title">Configurar</div><div class="page-subtitle">Importação de extrato CSV e e-mail diário</div></div>
+    </div>
+
+    <!-- INVESTMENT PCT -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">📊 Percentual de Investimento</div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.8;margin-bottom:16px">
+        Defina qual percentual do saldo disponível deve ser considerado como potencial investível (padrão: 45%).
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="form-group" style="margin-bottom:0;flex:1;min-width:120px;max-width:200px">
+          <label class="form-label">Percentual (%)</label>
+          <input id="inp-inv-pct" class="form-input" type="number" min="1" max="100" placeholder="45"/>
+        </div>
+        <div style="padding-top:20px">
+          <button class="btn btn-primary" id="btn-inv-pct" onclick="saveInvestimentoPct()">Salvar</button>
+        </div>
+      </div>
+      <div id="fb-inv-pct" class="feedback"></div>
     </div>
 
     <div class="g2">
@@ -456,6 +502,13 @@ async function checkStatus() {
 }
 
 // ── BALANCE ─────────────────────────────────────────────
+function fmtMonthLabel(ym) {
+  if (!ym) return '';
+  const [year, mon] = ym.split('-');
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return months[parseInt(mon,10)-1] + '/' + year;
+}
+
 async function loadBalance() {
   try {
     const r = await fetch('/api/balance');
@@ -472,16 +525,30 @@ async function loadBalance() {
     document.getElementById('inv-disponivel').textContent = 'Disponível: R$ '+fmt(d.investivel);
     document.getElementById('sim-base').textContent = 'base: R$ '+fmt(d.investivel);
 
+    // Show period indicator
+    if (d.month) {
+      const periodEl = document.getElementById('period-indicator');
+      if (periodEl) periodEl.textContent = 'Período: ' + fmtMonthLabel(d.month);
+    }
+
+    // Load investment pct into config form if present
+    if (d.investimento_pct) {
+      const pctEl = document.getElementById('inp-inv-pct');
+      if (pctEl && !pctEl.value) pctEl.value = d.investimento_pct;
+    }
+
     renderSim(12);
     renderAlerts();
   } catch(e) { console.warn('[Balance]', e); }
 }
 
 // ── TRANSACTIONS ─────────────────────────────────────────
-async function loadTransactions() {
-  if (txLoaded) return;
+const CATEGORIES = ['Rendimentos','PIX','Alimentação','Transporte','Saúde','Lazer','Moradia','Reserva','Outros'];
+
+async function loadTransactions(force=false) {
+  if (txLoaded && !force) return;
   try {
-    const r   = await fetch('/api/transactions?limit=20');
+    const r   = await fetch('/api/transactions?limit=50');
     const txs = await r.json();
     const el  = document.getElementById('tx-list');
     const ct  = document.getElementById('tx-count');
@@ -489,23 +556,93 @@ async function loadTransactions() {
 
     if (!txs.length) {
       el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center">Nenhuma transação ainda. Importe o extrato CSV do Mercado Pago.</div>';
+      txLoaded = true;
       return;
     }
     el.innerHTML = '';
     txs.forEach(t => {
-      const cr = t.amount > 0;
-      const dt = t.date_created ? new Date(t.date_created).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-      el.innerHTML += `
-        <div class="tx">
-          <div class="tx-l">
-            <div class="tx-ico" style="background:rgba(${cr?'0,230,118':'255,69,105'},0.1)">${cr?'💰':'💸'}</div>
-            <div><div class="tx-name">${t.description||'Transação'}</div><div class="tx-date">${dt}</div></div>
+      const cr  = t.amount > 0;
+      const dt  = t.date_created ? new Date(t.date_created).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '';
+      const cat = t.category || 'Outros';
+      const safeDesc = (t.description || 'Transação').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const div = document.createElement('div');
+      div.className = 'tx';
+      div.dataset.txId = t.id;
+      div.innerHTML = `
+        <div class="tx-l">
+          <div class="tx-ico" style="background:rgba(${cr?'0,230,118':'255,69,105'},0.1)">${cr?'💰':'💸'}</div>
+          <div>
+            <div class="tx-name">${safeDesc}</div>
+            <div class="tx-date">${dt} &nbsp;<span class="cat-badge cat-${cat}">${cat}</span></div>
           </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
           <div class="tx-val ${cr?'cr':'db'}">${cr?'+ ':'- '}R$ ${fmt(Math.abs(t.amount))}</div>
+          <div class="tx-actions">
+            <button class="tx-action-btn" title="Editar" onclick="startEditTx(${t.id}, this)">✏️</button>
+            <button class="tx-action-btn del" title="Excluir" onclick="deleteTx(${t.id}, this)">🗑️</button>
+          </div>
         </div>`;
+      el.appendChild(div);
     });
     txLoaded = true;
   } catch(e) { console.warn('[Tx]', e); }
+}
+
+function startEditTx(id, btn) {
+  // Remove any open edit form
+  document.querySelectorAll('.tx-edit-form').forEach(f => f.remove());
+
+  const txDiv = btn.closest('.tx');
+  if (!txDiv) return;
+  const nameEl = txDiv.querySelector('.tx-name');
+  const catEl  = txDiv.querySelector('.cat-badge');
+  const curDesc = nameEl ? nameEl.textContent : '';
+  const curCat  = catEl  ? catEl.textContent  : 'Outros';
+  const catOptions = CATEGORIES.map(c => `<option value="${c}"${c===curCat?' selected':''}>${c}</option>`).join('');
+
+  const form = document.createElement('div');
+  form.className = 'tx-edit-form';
+  form.innerHTML = `
+    <input type="text" id="edit-desc-${id}" value="${curDesc.replace(/"/g,'&quot;')}" placeholder="Descrição"/>
+    <select id="edit-cat-${id}">${catOptions}</select>
+    <div class="tx-edit-actions">
+      <button class="tx-edit-save" onclick="saveEditTx(${id})">Salvar</button>
+      <button class="tx-edit-cancel" onclick="this.closest('.tx-edit-form').remove()">Cancelar</button>
+    </div>`;
+  txDiv.after(form);
+}
+
+async function saveEditTx(id) {
+  const desc = document.getElementById('edit-desc-'+id)?.value.trim();
+  const cat  = document.getElementById('edit-cat-'+id)?.value;
+  if (!desc) return;
+  try {
+    const r = await fetch('/api/transactions/'+id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({description: desc, category: cat})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      txLoaded = false;
+      await loadTransactions(true);
+      loadBalance();
+    }
+  } catch(e) { console.warn('[EditTx]', e); }
+}
+
+async function deleteTx(id, btn) {
+  if (!confirm('Excluir esta transação?')) return;
+  try {
+    const r = await fetch('/api/transactions/'+id, {method:'DELETE'});
+    const d = await r.json();
+    if (d.ok) {
+      txLoaded = false;
+      await loadTransactions(true);
+      loadBalance();
+    }
+  } catch(e) { console.warn('[DelTx]', e); }
 }
 
 // ── CHARTS ──────────────────────────────────────────────
@@ -672,6 +809,7 @@ async function handleCsvUpload(input) {
       showCsvFeedback('fb-csv', msg, 'ok');
       txLoaded = false;
       loadBalance();
+      loadTransactions(true);
     } else {
       const msg = '❌ ' + (d.error || 'Erro ao importar');
       setStatus(msg, 'error');
@@ -733,6 +871,30 @@ async function testEmail() {
     const d=await r.json();
     d.ok ? feedback('fb-email','✅ '+d.message,'ok') : feedback('fb-email','❌ '+d.message,'error');
   } catch(e){ feedback('fb-email','❌ '+e.message,'error'); }
+}
+
+// ── INVESTMENT PCT ───────────────────────────────────────
+async function saveInvestimentoPct() {
+  const pctEl = document.getElementById('inp-inv-pct');
+  const pct = parseInt(pctEl?.value || '0', 10);
+  if (!pct || pct < 1 || pct > 100) { feedback('fb-inv-pct','❌ Informe um percentual entre 1 e 100.','error'); return; }
+  const btn = document.getElementById('btn-inv-pct');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+  try {
+    const r = await fetch('/api/config/investimento', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({pct})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      feedback('fb-inv-pct','✅ Percentual salvo! Atualizando...','ok');
+      loadBalance();
+    } else {
+      feedback('fb-inv-pct','❌ '+(d.error||'Erro'),'error');
+    }
+  } catch(e){ feedback('fb-inv-pct','❌ '+e.message,'error'); }
+  btn.textContent = 'Salvar'; btn.disabled = false;
 }
 </script>
 </body>

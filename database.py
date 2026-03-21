@@ -67,13 +67,14 @@ def save_transactions(movements: list):
             try:
                 conn.execute(
                     '''INSERT OR IGNORE INTO transactions
-                       (external_id, description, amount, type, date_created)
-                       VALUES (?, ?, ?, ?, ?)''',
+                       (external_id, description, amount, type, category, date_created)
+                       VALUES (?, ?, ?, ?, ?, ?)''',
                     (
                         str(m.get('id', '')),
                         m.get('description') or m.get('type') or 'Transação',
                         float(m.get('amount', 0)),
                         m.get('type', ''),
+                        m.get('category', 'Outros'),
                         m.get('date_created', datetime.utcnow().isoformat()),
                     )
                 )
@@ -104,6 +105,17 @@ def get_monthly_summary(month=None):
     if not month:
         month = datetime.utcnow().strftime('%Y-%m')
     with get_conn() as conn:
+        # If current month has no data, fall back to most recent month with data
+        count = conn.execute(
+            "SELECT COUNT(*) FROM transactions WHERE strftime('%Y-%m', date_created) = ?",
+            (month,)
+        ).fetchone()[0]
+        if count == 0:
+            row = conn.execute(
+                "SELECT strftime('%Y-%m', date_created) as m FROM transactions ORDER BY date_created DESC LIMIT 1"
+            ).fetchone()
+            if row:
+                month = row['m']
         row = conn.execute(
             '''SELECT
                 COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS entradas,
@@ -113,7 +125,9 @@ def get_monthly_summary(month=None):
                WHERE strftime('%Y-%m', date_created) = ?''',
             (month,)
         ).fetchone()
-        return dict(row) if row else {'entradas': 0, 'saidas': 0, 'total_tx': 0}
+        result = dict(row) if row else {'entradas': 0, 'saidas': 0, 'total_tx': 0}
+        result['month'] = month
+        return result
 
 
 def get_daily_summary(date=None):
@@ -147,3 +161,23 @@ def get_latest_balance():
             'SELECT * FROM balances ORDER BY synced_at DESC LIMIT 1'
         ).fetchone()
         return dict(row) if row else {'available': 0, 'total': 0}
+
+
+def update_transaction(tx_id, data):
+    fields = []
+    values = []
+    allowed = ['description', 'amount', 'category', 'date_created']
+    for k in allowed:
+        if k in data:
+            fields.append(f'{k} = ?')
+            values.append(data[k])
+    if not fields:
+        return
+    values.append(tx_id)
+    with get_conn() as conn:
+        conn.execute(f'UPDATE transactions SET {", ".join(fields)} WHERE id = ?', values)
+
+
+def delete_transaction(tx_id):
+    with get_conn() as conn:
+        conn.execute('DELETE FROM transactions WHERE id = ?', (tx_id,))

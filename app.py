@@ -119,6 +119,27 @@ def parse_br_number(s):
     return float(s)
 
 
+def categorize(description):
+    desc = description.lower()
+    if any(x in desc for x in ['rendimento', 'juros', 'yield']):
+        return 'Rendimentos'
+    if any(x in desc for x in ['pix enviado', 'transferência pix enviada', 'pix recebido', 'transferência pix recebida', 'pix']):
+        return 'PIX'
+    if any(x in desc for x in ['mercado', 'supermercado', 'padaria', 'restaurante', 'ifood', 'alimenta']):
+        return 'Alimentação'
+    if any(x in desc for x in ['uber', 'taxi', '99', 'ônibus', 'combustível', 'gasolina', 'transporte']):
+        return 'Transporte'
+    if any(x in desc for x in ['farmácia', 'saúde', 'médico', 'hospital', 'plano de saúde']):
+        return 'Saúde'
+    if any(x in desc for x in ['netflix', 'spotify', 'cinema', 'lazer', 'entretenimento']):
+        return 'Lazer'
+    if any(x in desc for x in ['aluguel', 'condomínio', 'moradia', 'luz', 'água', 'energia', 'internet']):
+        return 'Moradia'
+    if any(x in desc for x in ['reserva', 'meta']):
+        return 'Reserva'
+    return 'Outros'
+
+
 def parse_csv_mercadopago(content):
     """
     Parse Mercado Pago CSV export.
@@ -183,6 +204,7 @@ def parse_csv_mercadopago(content):
             'description':  transaction_type,
             'amount':       amount,
             'type':         tx_type,
+            'category':     categorize(transaction_type),
             'date_created': date_iso,
         })
 
@@ -236,12 +258,15 @@ def balance():
     bal     = db.get_latest_balance()
     summary = db.get_monthly_summary()
     disp    = bal.get('available') or (summary['entradas'] - summary['saidas'])
+    pct     = float(db.get_config('investimento_pct') or 45) / 100
     return jsonify({
-        'available':  disp,
-        'investivel': disp * 0.45,
-        'entradas':   summary['entradas'],
-        'saidas':     summary['saidas'],
-        'total_tx':   summary['total_tx'],
+        'available':        disp,
+        'investivel':       disp * pct,
+        'investimento_pct': int(pct * 100),
+        'entradas':         summary['entradas'],
+        'saidas':           summary['saidas'],
+        'total_tx':         summary['total_tx'],
+        'month':            summary.get('month', ''),
     })
 
 
@@ -254,6 +279,34 @@ def transactions():
     month = request.args.get('month')
     txs   = db.get_transactions(limit=limit, month=month)
     return jsonify(txs)
+
+
+@app.route('/api/transactions/<int:tx_id>', methods=['PUT'])
+@login_required
+def update_transaction(tx_id):
+    data = request.get_json(silent=True) or {}
+    db.update_transaction(tx_id, data)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/transactions/<int:tx_id>', methods=['DELETE'])
+@login_required
+def delete_transaction(tx_id):
+    db.delete_transaction(tx_id)
+    return jsonify({'ok': True})
+
+
+# ── CONFIG: INVESTIMENTO ──────────────────────────────────
+
+@app.route('/api/config/investimento', methods=['POST'])
+@login_required
+def save_investimento_pct():
+    data = request.get_json(silent=True) or {}
+    pct  = data.get('pct')
+    if pct is None or not (1 <= int(pct) <= 100):
+        return jsonify({'error': 'Percentual inválido (1-100)'}), 400
+    db.set_config('investimento_pct', str(int(pct)))
+    return jsonify({'ok': True})
 
 
 # ── CRYPTO ───────────────────────────────────────────────
