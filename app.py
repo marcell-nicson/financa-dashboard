@@ -121,22 +121,33 @@ def parse_br_number(s):
 
 def categorize(description):
     desc = description.lower()
+
+    # 1. Specific keywords that override payment method detection
+    if any(x in desc for x in ['cartão de crédito', 'cartao de credito', 'fatura cartão', 'fatura cartao']):
+        return 'Cartão de Crédito'
     if any(x in desc for x in ['rendimento', 'juros', 'yield']):
         return 'Rendimentos'
-    if any(x in desc for x in ['pix enviado', 'transferência pix enviada', 'pix recebido', 'transferência pix recebida', 'pix']):
-        return 'PIX'
-    if any(x in desc for x in ['mercado', 'supermercado', 'padaria', 'restaurante', 'ifood', 'alimenta']):
-        return 'Alimentação'
-    if any(x in desc for x in ['uber', 'taxi', '99', 'ônibus', 'combustível', 'gasolina', 'transporte']):
-        return 'Transporte'
-    if any(x in desc for x in ['farmácia', 'saúde', 'médico', 'hospital', 'plano de saúde']):
+    if any(x in desc for x in ['receita federal', 'confederação nacional', 'imposto', 'tributo', 'inss', 'fgts', 'darf', 'iptu', 'ipva']):
+        return 'Impostos'
+    if any(x in desc for x in ['saude', 'saúde', 'plano de saude', 'plano de saúde', 'farmácia', 'farmacia', 'médico', 'medico', 'hospital', 'clínica', 'clinica', 'odonto', 'dentista']):
         return 'Saúde'
-    if any(x in desc for x in ['netflix', 'spotify', 'cinema', 'lazer', 'entretenimento']):
+    if any(x in desc for x in ['itaú', 'itau', 'banco pan', 'bradesco', 'santander', 'caixa econômica', 'nubank', 'c6 bank', 'financiamento', 'empréstimo', 'emprestimo', 'pagamento de conta']):
+        return 'Financiamentos'
+    if any(x in desc for x in ['mercado', 'supermercado', 'padaria', 'restaurante', 'ifood', 'alimenta', 'açougue', 'hortifruti']):
+        return 'Alimentação'
+    if any(x in desc for x in ['uber', 'taxi', '99pop', 'ônibus', 'onibus', 'combustível', 'combustivel', 'gasolina', 'posto', 'pedágio', 'pedagio', 'transporte']):
+        return 'Transporte'
+    if any(x in desc for x in ['netflix', 'spotify', 'cinema', 'lazer', 'steam', 'amazon prime', 'disney', 'hbo', 'show', 'teatro']):
         return 'Lazer'
-    if any(x in desc for x in ['aluguel', 'condomínio', 'moradia', 'luz', 'água', 'energia', 'internet']):
+    if any(x in desc for x in ['aluguel', 'condomínio', 'condominio', 'energia elétrica', 'energia eletrica', 'água', 'agua', 'internet', 'moradia']):
         return 'Moradia'
-    if any(x in desc for x in ['reserva', 'meta']):
+    if any(x in desc for x in ['reserva', 'meta ']):
         return 'Reserva'
+
+    # 2. PIX is the fallback for pix transactions (when no specific category matched)
+    if 'pix' in desc:
+        return 'PIX'
+
     return 'Outros'
 
 

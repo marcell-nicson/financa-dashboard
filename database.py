@@ -181,3 +181,14 @@ def update_transaction(tx_id, data):
 def delete_transaction(tx_id):
     with get_conn() as conn:
         conn.execute('DELETE FROM transactions WHERE id = ?', (tx_id,))
+
+
+def recategorize_all(categorize_fn):
+    with get_conn() as conn:
+        rows = conn.execute('SELECT id, description FROM transactions').fetchall()
+        updated = 0
+        for row in rows:
+            new_cat = categorize_fn(row['description'] or '')
+            conn.execute('UPDATE transactions SET category = ? WHERE id = ?', (new_cat, row['id']))
+            updated += 1
+        return updated

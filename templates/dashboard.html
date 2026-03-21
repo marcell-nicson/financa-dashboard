@@ -154,6 +154,9 @@
     .cat-Moradia      { background: rgba(0,177,234,0.12);  color: var(--blue); }
     .cat-Reserva      { background: rgba(124,77,255,0.12); color: var(--purple); }
     .cat-Outros       { background: rgba(107,107,136,0.15); color: var(--muted); }
+    .cat-Cartão\ de\ Crédito { background: rgba(156,39,176,0.15); color: #ce93d8; }
+    .cat-Financiamentos { background: rgba(121,85,72,0.15); color: #bcaaa4; }
+    .cat-Impostos { background: rgba(244,67,54,0.15); color: #ef9a9a; }
 
     /* TX ACTION BUTTONS */
     .tx-actions { display: flex; gap: 6px; align-items: center; }
@@ -543,7 +546,7 @@ async function loadBalance() {
 }
 
 // ── TRANSACTIONS ─────────────────────────────────────────
-const CATEGORIES = ['Rendimentos','PIX','Alimentação','Transporte','Saúde','Lazer','Moradia','Reserva','Outros'];
+const CATEGORIES = ['Rendimentos','PIX','Alimentação','Transporte','Saúde','Lazer','Moradia','Reserva','Cartão de Crédito','Financiamentos','Impostos','Outros'];
 
 async function loadTransactions(force=false) {
   if (txLoaded && !force) return;
