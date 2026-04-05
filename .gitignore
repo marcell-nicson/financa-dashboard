@@ -7,3 +7,4 @@ financa.db
 venv/
 .venv/
 *.log
+.claude/
