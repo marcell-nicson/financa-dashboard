@@ -378,6 +378,38 @@
       <div id="fb-inv-pct" class="feedback"></div>
     </div>
 
+    <!-- BTC CONFIG -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">₿ Configuração BTC</div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.8;margin-bottom:16px">
+        Informe sua posição em Bitcoin e configure alertas de preço para receber notificações por e-mail.
+      </div>
+      <div class="g2">
+        <div class="form-group">
+          <label class="form-label">Quantidade de BTC que possuo</label>
+          <input id="inp-btc-qtd" class="form-input" type="number" step="0.00000001" placeholder="ex: 0.05"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preço médio de compra (R$)</label>
+          <input id="inp-btc-medio" class="form-input" type="number" placeholder="ex: 520000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alerta se preço acima de (R$)</label>
+          <input id="inp-btc-acima" class="form-input" type="number" placeholder="ex: 600000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alerta se preço abaixo de (R$)</label>
+          <input id="inp-btc-abaixo" class="form-input" type="number" placeholder="ex: 480000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alerta se variação 1h maior que (%)</label>
+          <input id="inp-btc-var" class="form-input" type="number" placeholder="ex: 5"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-btc" onclick="saveBtcConfig()">Salvar</button>
+      <div id="fb-btc" class="feedback"></div>
+    </div>
+
     <div class="g2">
       <!-- CSV IMPORT -->
       <div class="panel">
@@ -489,6 +521,7 @@ function counter(el, val, dur=1000) {
   loadCrypto();
   renderSim(12);
   loadEmailConfig();
+  loadBtcConfig();
 })();
 
 async function checkStatus() {
@@ -897,6 +930,44 @@ async function saveInvestimentoPct() {
       feedback('fb-inv-pct','❌ '+(d.error||'Erro'),'error');
     }
   } catch(e){ feedback('fb-inv-pct','❌ '+e.message,'error'); }
+  btn.textContent = 'Salvar'; btn.disabled = false;
+}
+
+// ── BTC CONFIG ───────────────────────────────────────────
+async function loadBtcConfig() {
+  try {
+    const r = await fetch('/api/config/btc');
+    const d = await r.json();
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('inp-btc-qtd',   d.quantidade);
+    set('inp-btc-medio', d.preco_medio);
+    set('inp-btc-acima', d.alerta_acima);
+    set('inp-btc-abaixo',d.alerta_abaixo);
+    set('inp-btc-var',   d.alerta_variacao_pct);
+  } catch(e) { console.warn('[BTC config]', e); }
+}
+
+async function saveBtcConfig() {
+  const get = id => document.getElementById(id)?.value?.trim() || '';
+  const payload = {
+    quantidade:          get('inp-btc-qtd'),
+    preco_medio:         get('inp-btc-medio'),
+    alerta_acima:        get('inp-btc-acima'),
+    alerta_abaixo:       get('inp-btc-abaixo'),
+    alerta_variacao_pct: get('inp-btc-var'),
+  };
+  const btn = document.getElementById('btn-btc');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+  try {
+    const r = await fetch('/api/config/btc', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    d.ok ? feedback('fb-btc','✅ Configurações BTC salvas!','ok')
+         : feedback('fb-btc','❌ '+(d.error||'Erro ao salvar'),'error');
+  } catch(e) { feedback('fb-btc','❌ '+e.message,'error'); }
   btn.textContent = 'Salvar'; btn.disabled = false;
 }
 </script>

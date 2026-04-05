@@ -136,6 +136,106 @@ def build_daily_email(crypto_data: dict = None):
               </td>
             </tr>'''
 
+    # ── Seção BTC detalhada ───────────────────────────────
+    btc_section_html = ''
+    if crypto_data and 'bitcoin' in crypto_data:
+        btc_price   = crypto_data['bitcoin'].get('brl', 0)
+        btc_24h     = crypto_data['bitcoin'].get('brl_24h_change', 0)
+        btc_7d      = crypto_data['bitcoin'].get('brl_7d_change', None)
+
+        def _change_row(label, chg):
+            up    = chg >= 0
+            c     = '#00e676' if up else '#ff4569'
+            arrow = '▲' if up else '▼'
+            return (
+                f'<tr>'
+                f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">{label}</td>'
+                f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:13px;font-weight:600;color:{c}">'
+                f'{arrow} {abs(chg):.2f}%</td>'
+                f'</tr>'
+            )
+
+        btc_rows = (
+            f'<tr>'
+            f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">Preço atual (BRL)</td>'
+            f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:14px;font-weight:700;color:#eee">'
+            f'R$ {btc_price:,.2f}</td>'
+            f'</tr>'
+        )
+        btc_rows += _change_row('Variação 24h', btc_24h)
+        if btc_7d is not None:
+            btc_rows += _change_row('Variação 7d', btc_7d)
+
+        # Posição do usuário
+        btc_qtd_str   = db.get_config('btc_quantidade') or ''
+        btc_medio_str = db.get_config('btc_preco_medio') or ''
+        btc_alert_html = ''
+
+        if btc_qtd_str:
+            try:
+                qtd   = float(btc_qtd_str)
+                valor = qtd * btc_price
+                btc_rows += (
+                    f'<tr>'
+                    f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">Sua posição ({qtd} BTC)</td>'
+                    f'<td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:13px;font-weight:600;color:#00b1ea">'
+                    f'R$ {valor:,.2f}</td>'
+                    f'</tr>'
+                )
+                if btc_medio_str:
+                    medio   = float(btc_medio_str)
+                    pnl     = (btc_price - medio) * qtd
+                    pnl_pct = ((btc_price - medio) / medio * 100) if medio > 0 else 0
+                    pnl_color = '#00e676' if pnl >= 0 else '#ff4569'
+                    pnl_sinal = '+' if pnl >= 0 else ''
+                    btc_rows += (
+                        f'<tr>'
+                        f'<td style="padding:8px 0;font-size:13px;color:#ccc">Lucro/Prejuízo</td>'
+                        f'<td style="padding:8px 0;text-align:right;font-size:13px;font-weight:600;color:{pnl_color}">'
+                        f'{pnl_sinal}R$ {pnl:,.2f} ({pnl_sinal}{pnl_pct:.2f}%)</td>'
+                        f'</tr>'
+                    )
+
+                    # Verificar cruzamento de limiares para bloco de alerta visual
+                    alerta_acima_str  = db.get_config('btc_alerta_acima') or ''
+                    alerta_abaixo_str = db.get_config('btc_alerta_abaixo') or ''
+                    alert_kind = None
+                    alert_msg  = ''
+                    if alerta_acima_str:
+                        try:
+                            if btc_price > float(alerta_acima_str):
+                                alert_kind = 'warn'
+                                alert_msg  = f'Preço acima do limite de R$ {float(alerta_acima_str):,.2f}'
+                        except ValueError:
+                            pass
+                    if not alert_kind and alerta_abaixo_str:
+                        try:
+                            if btc_price < float(alerta_abaixo_str):
+                                alert_kind = 'danger'
+                                alert_msg  = f'Preço abaixo do limite de R$ {float(alerta_abaixo_str):,.2f}'
+                        except ValueError:
+                            pass
+                    if alert_kind:
+                        c, bg, border = alert_colors.get(alert_kind, alert_colors['warn'])
+                        btc_alert_html = (
+                            f'<div style="background:{bg};border:1px solid {border};border-radius:10px;'
+                            f'padding:12px 16px;margin-top:12px">'
+                            f'<div style="font-size:13px;font-weight:600;color:{c};margin-bottom:4px">⚠️ Alerta de preço</div>'
+                            f'<div style="font-size:12px;color:#999;line-height:1.5">{alert_msg}</div>'
+                            f'</div>'
+                        )
+            except (ValueError, ZeroDivisionError):
+                pass
+
+        btc_section_html = (
+            f'<div style="background:#16161f;border:1px solid rgba(255,255,255,0.07);'
+            f'border-radius:14px;padding:20px;margin-bottom:14px">'
+            f'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b6b88;margin-bottom:14px">₿ Bitcoin — Posição detalhada</div>'
+            f'<table style="width:100%;border-collapse:collapse">{btc_rows}</table>'
+            f'{btc_alert_html}'
+            f'</div>'
+        )
+
     html = f'''<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -200,6 +300,9 @@ def build_daily_email(crypto_data: dict = None):
   <!-- CRYPTO -->
   {'<div style="background:#16161f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;margin-bottom:14px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b6b88;margin-bottom:14px">₿ Criptomoedas — Variação 24h</div><table style="width:100%;border-collapse:collapse">' + crypto_html + '</table></div>' if crypto_html else ''}
 
+  <!-- BTC DETALHADO -->
+  {btc_section_html}
+
   <div style="text-align:center;font-size:11px;color:#444;margin-top:24px">
     Dashboard Financeiro Pessoal · Marcell · Gerado automaticamente às 8:30<br/>
     <a href="https://financas.promoestoque.com.br" style="color:#00b1ea">
@@ -214,17 +317,102 @@ def build_daily_email(crypto_data: dict = None):
     return html
 
 
+def build_btc_alert_email(price_brl: float, change_pct: float, motivo: str, change_period: str = '1h') -> str:
+    """Monta e-mail de alerta de preço/variação de BTC."""
+    btc_qtd_str   = db.get_config('btc_quantidade') or ''
+    btc_medio_str = db.get_config('btc_preco_medio') or ''
+
+    up    = change_pct >= 0
+    color = '#00e676' if up else '#ff4569'
+    arrow = '▲' if up else '▼'
+
+    posicao_html = ''
+    if btc_qtd_str:
+        try:
+            qtd    = float(btc_qtd_str)
+            valor  = qtd * price_brl
+            posicao_html = f'''
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">Sua posição ({qtd} BTC)</td>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:13px;font-weight:600;color:#00b1ea">
+          R$ {valor:,.2f}
+        </td>
+      </tr>'''
+            if btc_medio_str:
+                medio   = float(btc_medio_str)
+                pnl     = (price_brl - medio) * qtd
+                pnl_pct = ((price_brl - medio) / medio * 100) if medio > 0 else 0
+                pnl_color = '#00e676' if pnl >= 0 else '#ff4569'
+                pnl_sinal = '+' if pnl >= 0 else ''
+                posicao_html += f'''
+      <tr>
+        <td style="padding:8px 0;font-size:13px;color:#ccc">Lucro/Prejuízo</td>
+        <td style="padding:8px 0;text-align:right;font-size:13px;font-weight:600;color:{pnl_color}">
+          {pnl_sinal}R$ {pnl:,.2f} ({pnl_sinal}{pnl_pct:.2f}%)
+        </td>
+      </tr>'''
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    html = f'''<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0e0e16;font-family:Arial,sans-serif">
+<div style="max-width:580px;margin:0 auto;padding:32px 20px">
+
+  <h2 style="color:#ffd600;font-size:18px;margin-bottom:4px">
+    ⚠️ Alerta BTC
+  </h2>
+  <p style="color:#666;font-size:13px;margin-bottom:28px">
+    {motivo}
+  </p>
+
+  <div style="background:#16161f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;margin-bottom:14px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b6b88;margin-bottom:14px">₿ Bitcoin — Dados atuais</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">Preço atual (BRL)</td>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:14px;font-weight:700;color:#eee">
+          R$ {price_brl:,.2f}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">Variação ({change_period})</td>
+        <td style="padding:8px 0;border-bottom:1px solid #1e1e2e;text-align:right;font-size:13px;font-weight:600;color:{color}">
+          {arrow} {abs(change_pct):.2f}%
+        </td>
+      </tr>
+      {posicao_html}
+    </table>
+  </div>
+
+  <div style="background:rgba(255,214,0,0.08);border:1px solid rgba(255,214,0,0.2);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:600;color:#ffd600;margin-bottom:4px">⚠️ Motivo do alerta</div>
+    <div style="font-size:12px;color:#999;line-height:1.5">{motivo}</div>
+  </div>
+
+  <div style="text-align:center;font-size:11px;color:#444;margin-top:24px">
+    Dashboard Financeiro Pessoal · Marcell · Alerta automático<br/>
+    <a href="https://financas.promoestoque.com.br" style="color:#00b1ea">Abrir dashboard</a>
+  </div>
+
+</div>
+</body>
+</html>'''
+    return html
+
+
 def send_daily_summary():
     to_email = db.get_config('email_destinatario') or 'marcellnicson@gmail.com'
 
-    # Busca preços das cryptos
+    # Busca preços das cryptos (inclui 7d)
     crypto_data = {}
     try:
         import requests as req
         r = req.get(
             'https://api.coingecko.com/api/v3/simple/price'
             '?ids=bitcoin,ethereum,solana,binancecoin'
-            '&vs_currencies=brl&include_24hr_change=true',
+            '&vs_currencies=brl&include_24hr_change=true&include_7d_change=true',
             timeout=10
         )
         crypto_data = r.json()

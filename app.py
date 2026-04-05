@@ -15,6 +15,9 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 
 db.init_db()
 
+import scheduler as _scheduler
+_scheduler.start_scheduler()
+
 
 # ── AUTH ─────────────────────────────────────────────────
 
@@ -335,6 +338,37 @@ def crypto():
         return jsonify(r.json())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ── CONFIG: BTC ───────────────────────────────────────────
+
+@app.route('/api/config/btc', methods=['GET'])
+@login_required
+def get_btc_config():
+    return jsonify({
+        'quantidade':         db.get_config('btc_quantidade') or '',
+        'preco_medio':        db.get_config('btc_preco_medio') or '',
+        'alerta_acima':       db.get_config('btc_alerta_acima') or '',
+        'alerta_abaixo':      db.get_config('btc_alerta_abaixo') or '',
+        'alerta_variacao_pct': db.get_config('btc_alerta_variacao_pct') or '',
+    })
+
+
+@app.route('/api/config/btc', methods=['POST'])
+@login_required
+def save_btc_config():
+    data = request.get_json(silent=True) or {}
+    fields = {
+        'quantidade':          'btc_quantidade',
+        'preco_medio':         'btc_preco_medio',
+        'alerta_acima':        'btc_alerta_acima',
+        'alerta_abaixo':       'btc_alerta_abaixo',
+        'alerta_variacao_pct': 'btc_alerta_variacao_pct',
+    }
+    for json_key, config_key in fields.items():
+        value = data.get(json_key, '')
+        db.set_config(config_key, str(value).strip())
+    return jsonify({'ok': True})
 
 
 # ── TEST EMAIL ───────────────────────────────────────────

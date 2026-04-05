@@ -6,7 +6,7 @@ After=network.target
 User=www-data
 WorkingDirectory=/var/www/financa
 ExecStart=/var/www/financa/venv/bin/gunicorn \
-    --workers 2 \
+    --workers 1 \
     --bind 127.0.0.1:5000 \
     --timeout 60 \
     --access-logfile /var/log/financa/access.log \
