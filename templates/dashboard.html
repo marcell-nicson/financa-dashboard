@@ -339,7 +339,103 @@
         <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(255,145,0,0.08)">₿</div><div><div class="inv-name">Bitcoin (BTC)</div><div class="inv-desc" id="btc-price">Carregando...</div><span class="risk mid">Risco médio-alto</span></div></div><div class="inv-r"><div class="inv-ret" id="btc-chg">—</div><div class="inv-sim">Âncora do mercado</div></div></div>
         <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(124,77,255,0.08)">⟠</div><div><div class="inv-name">Ethereum (ETH)</div><div class="inv-desc" id="eth-price">Carregando...</div><span class="risk mid">Risco médio-alto</span></div></div><div class="inv-r"><div class="inv-ret" id="eth-chg">—</div><div class="inv-sim">Smart contracts</div></div></div>
         <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(20,241,149,0.08)">◎</div><div><div class="inv-name">Solana (SOL)</div><div class="inv-desc" id="sol-price">Carregando...</div><span class="risk high">Risco alto</span></div></div><div class="inv-r"><div class="inv-ret" id="sol-chg">—</div><div class="inv-sim">Alta velocidade</div></div></div>
-        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(243,186,47,0.08)">🔶</div><div><div class="inv-name">BNB</div><div class="inv-desc" id="bnb-price">Carregando...</div><span class="risk high">Risco alto</span></div></div><div class="inv-r"><div class="inv-ret" id="bnb-chg">—</div><div class="inv-sim">Ecossistema Binance</div></div></div>
+        <div class="inv"><div class="inv-l"><div class="inv-ico" style="background:rgba(0,177,234,0.08)">✕</div><div><div class="inv-name">XRP</div><div class="inv-desc" id="xrp-price">Carregando...</div><span class="risk high">Risco alto</span></div></div><div class="inv-r"><div class="inv-ret" id="xrp-chg">—</div><div class="inv-sim">Pagamentos globais</div></div></div>
+      </div>
+    </div>
+
+    <!-- Mercado Bitcoin -->
+    <div class="panel" style="margin-top:16px" id="mb-panel">
+      <div class="panel-title">₿ Mercado Bitcoin <span class="muted" id="mb-update-time">carregando...</span></div>
+
+      <!-- Preço e indicadores -->
+      <div class="cards" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-top"><div class="card-label">Preço Atual (BRL)</div><div class="chip chip-b">MB</div></div>
+          <div class="card-value" style="color:var(--yellow)" id="mb-last">—</div>
+          <div class="card-delta" id="mb-vol">Vol 24h: —</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><div class="card-label">Máx / Mín 24h</div><div class="chip chip-g">Dia</div></div>
+          <div class="card-value" style="font-size:1.1rem" id="mb-highlow">—</div>
+          <div class="card-delta">Variação intraday</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><div class="card-label">MA7 / MA30</div><div class="chip chip-p">Médias</div></div>
+          <div class="card-value" style="font-size:1rem" id="mb-ma">—</div>
+          <div class="card-delta" id="mb-ma-signal">—</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><div class="card-label">Fear &amp; Greed</div><div id="mb-fg-chip" class="chip chip-b">—</div></div>
+          <div class="card-value" style="font-size:1.5rem" id="mb-fg-val">—</div>
+          <div class="card-delta" id="mb-fg-label">—</div>
+        </div>
+      </div>
+
+      <!-- Orderbook -->
+      <div class="g2" style="margin-bottom:16px">
+        <div>
+          <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Compradores (Top 5 Bids)</div>
+          <table style="width:100%;border-collapse:collapse" id="mb-bids-table">
+            <thead><tr>
+              <th style="font-size:0.72rem;color:var(--muted);text-align:left;padding-bottom:6px">Preço (R$)</th>
+              <th style="font-size:0.72rem;color:var(--muted);text-align:right;padding-bottom:6px">Qtd (BTC)</th>
+            </tr></thead>
+            <tbody id="mb-bids"><tr><td colspan="2" style="color:var(--muted);font-size:0.82rem;padding:8px 0">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Vendedores (Top 5 Asks)</div>
+          <table style="width:100%;border-collapse:collapse" id="mb-asks-table">
+            <thead><tr>
+              <th style="font-size:0.72rem;color:var(--muted);text-align:left;padding-bottom:6px">Preço (R$)</th>
+              <th style="font-size:0.72rem;color:var(--muted);text-align:right;padding-bottom:6px">Qtd (BTC)</th>
+            </tr></thead>
+            <tbody id="mb-asks"><tr><td colspan="2" style="color:var(--muted);font-size:0.82rem;padding:8px 0">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+        <span style="font-size:0.8rem;color:var(--muted)">Spread:</span>
+        <span style="font-size:0.88rem;font-weight:600;color:var(--yellow)" id="mb-spread">—</span>
+        <span style="font-size:0.74rem;color:var(--muted)" id="mb-spread-pct"></span>
+      </div>
+
+      <!-- Saldo na conta MB (só aparece se configurado) -->
+      <div id="mb-saldo-block" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Saldo na conta Mercado Bitcoin</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div><div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px">BTC</div><div style="font-size:1.1rem;font-weight:700;color:var(--yellow)" id="mb-saldo-btc">—</div></div>
+          <div><div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px">BRL</div><div style="font-size:1.1rem;font-weight:700;color:var(--green)" id="mb-saldo-brl">—</div></div>
+        </div>
+        <div id="mb-saldo-err" style="display:none;font-size:0.78rem;color:var(--red);margin-top:8px"></div>
+      </div>
+
+      <!-- Configuração API MB -->
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Configuração API Mercado Bitcoin</div>
+        <!-- estado: configurado -->
+        <div id="mb-cfg-configured" style="display:none;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:0.82rem;color:var(--green)">✓ Configurado</span>
+          <span id="mb-cfg-id-preview" style="font-size:0.8rem;color:var(--muted);font-family:monospace"></span>
+          <button class="btn" style="padding:4px 12px;font-size:0.78rem" onclick="document.getElementById('mb-cfg-configured').style.display='none';document.getElementById('mb-cfg-form').style.display='block'">Alterar</button>
+        </div>
+        <!-- estado: formulário -->
+        <div id="mb-cfg-form">
+          <div id="mb-cfg-status" style="font-size:0.8rem;margin-bottom:12px"></div>
+          <div class="g2">
+            <div class="form-group">
+              <label class="form-label">API ID</label>
+              <input id="inp-mb-id" class="form-input" type="text" placeholder="Seu MB API ID"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">API Secret</label>
+              <input id="inp-mb-secret" class="form-input" type="password" placeholder="Seu MB API Secret"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveMbConfig()">Salvar credenciais MB</button>
+          <div id="fb-mb" class="feedback"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -466,6 +562,13 @@
 const fmt = n => n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 let txLoaded    = false;
 let chartsOk   = false;
+let balanceData = {};
+const invs = [
+  {name:'🏛️ Tesouro Selic', rate:0.1065},
+  {name:'🏦 CDB 110% CDI',  rate:0.1170},
+  {name:'💼 MP Reserva',    rate:0.1065},
+  {name:'📄 LCI / LCA',     rate:0.1210},
+];
 
 // ── NAVIGATION ──────────────────────────────────────────
 function goTo(page, el) {
@@ -473,7 +576,11 @@ function goTo(page, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   el.classList.add('active');
-  if (page === 'investimentos') { loadCrypto(); renderSim(12); }
+  if (page === 'investimentos') {
+    try { loadCrypto(); } catch(e) { console.error('[goTo] loadCrypto:', e); }
+    try { renderSim(12); } catch(e) { console.error('[goTo] renderSim:', e); }
+    try { loadMbAll(); } catch(e) { console.error('[goTo] loadMbAll:', e); }
+  }
   if (page === 'gastos')        { loadTransactions(); renderCharts(); }
   if (page === 'alertas')       { renderAlerts(); }
 }
@@ -522,6 +629,8 @@ function counter(el, val, dur=1000) {
   renderSim(12);
   loadEmailConfig();
   loadBtcConfig();
+  loadMbConfig();
+  loadMbAll();
 })();
 
 async function checkStatus() {
@@ -759,12 +868,6 @@ function renderAlerts() {
 }
 
 // ── SIMULATOR ───────────────────────────────────────────
-const invs = [
-  {name:'🏛️ Tesouro Selic', rate:0.1065},
-  {name:'🏦 CDB 110% CDI',  rate:0.1170},
-  {name:'💼 MP Reserva',    rate:0.1065},
-  {name:'📄 LCI / LCA',     rate:0.1210},
-];
 
 function sim(months, btn) {
   document.querySelectorAll('.sim-btn').forEach(b=>b.classList.remove('active'));
@@ -796,7 +899,7 @@ async function loadCrypto() {
   try {
     const r = await fetch('/api/crypto');
     const d = await r.json();
-    const map = [['bitcoin','btc'],['ethereum','eth'],['solana','sol'],['binancecoin','bnb']];
+    const map = [['BTC','btc'],['ETH','eth'],['SOL','sol'],['XRP','xrp']];
     map.forEach(([id,pfx])=>{
       if(!d[id]) return;
       const price=d[id].brl, chg=d[id].brl_24h_change, up=chg>=0;
@@ -931,6 +1034,164 @@ async function saveInvestimentoPct() {
     }
   } catch(e){ feedback('fb-inv-pct','❌ '+e.message,'error'); }
   btn.textContent = 'Salvar'; btn.disabled = false;
+}
+
+// ── MERCADO BITCOIN ──────────────────────────────────────
+function fgStyle(val) {
+  const cfg = [
+    [25,  'chip-r', 'Medo Extremo'],
+    [45,  'chip-r', 'Medo'],
+    [55,  'chip-b', 'Neutro'],
+    [75,  'chip-g', 'Ganância'],
+    [101, 'chip-g', 'Ganância Extrema'],
+  ];
+  for (const [limit, chip, label] of cfg) {
+    if (val < limit) return {chip, label};
+  }
+  return {chip:'chip-b', label:'N/D'};
+}
+
+async function loadMbTicker() {
+  console.log('[MB] loadMbTicker iniciado');
+  try {
+    const r = await fetch('/api/mercadobitcoin/ticker');
+    const d = await r.json();
+    console.log('[MB] ticker resposta:', d);
+    if (d.error) { console.warn('[MB] ticker error:', d.error); return; }
+
+    const setEl = (id, txt) => { const e=document.getElementById(id); if(e) e.textContent=txt; };
+
+    setEl('mb-last',    d.last   ? 'R$ '+fmt(d.last) : '—');
+    setEl('mb-vol',     d.vol    ? 'Vol 24h: '+parseFloat(d.vol).toFixed(4)+' BTC' : 'Vol 24h: —');
+    setEl('mb-highlow', d.high && d.low ? 'R$ '+fmt(d.high)+' / R$ '+fmt(d.low) : '—');
+    setEl('mb-update-time', 'atualizado agora');
+
+    const maEl = document.getElementById('mb-ma');
+    const sigEl = document.getElementById('mb-ma-signal');
+    if (maEl) {
+      const ma7txt  = d.ma7  ? 'R$ '+fmt(d.ma7)  : 'N/D';
+      const ma30txt = d.ma30 ? 'R$ '+fmt(d.ma30) : 'N/D';
+      maEl.textContent = ma7txt + ' / ' + ma30txt;
+    }
+    if (sigEl && d.ma30 && d.last) {
+      const above = d.last >= d.ma30;
+      const sign  = d.variation_pct_from_ma30 >= 0 ? '+' : '';
+      sigEl.textContent = (above ? '▲ Acima' : '▼ Abaixo') + ' da MA30 (' + sign + d.variation_pct_from_ma30 + '%)';
+      sigEl.style.color = above ? 'var(--green)' : 'var(--red)';
+    }
+  } catch(e) { console.error('[MB ticker] exception:', e); }
+}
+
+async function loadMbOrderbook() {
+  try {
+    const r = await fetch('/api/mercadobitcoin/orderbook');
+    const d = await r.json();
+    if (d.error) return;
+
+    const renderRows = (tbodyId, rows, color) => {
+      const el = document.getElementById(tbodyId);
+      if (!el) return;
+      el.innerHTML = rows.map(([p, q]) =>
+        `<tr>
+          <td style="padding:5px 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:${color}">R$ ${fmt(p)}</td>
+          <td style="padding:5px 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:var(--muted);text-align:right">${parseFloat(q).toFixed(6)}</td>
+        </tr>`
+      ).join('');
+    };
+
+    renderRows('mb-bids', d.bids || [], 'var(--green)');
+    renderRows('mb-asks', d.asks || [], 'var(--red)');
+
+    const spreadEl    = document.getElementById('mb-spread');
+    const spreadPctEl = document.getElementById('mb-spread-pct');
+    if (spreadEl)    spreadEl.textContent    = d.spread != null ? 'R$ '+fmt(d.spread) : '—';
+    if (spreadPctEl) spreadPctEl.textContent = d.spread_pct != null ? '('+d.spread_pct+'%)' : '';
+  } catch(e) { console.error('[MB orderbook] exception:', e); }
+}
+
+async function loadMbConta() {
+  try {
+    const r = await fetch('/api/mercadobitcoin/conta');
+    const d = await r.json();
+    const block = document.getElementById('mb-saldo-block');
+    const cfgStatus = document.getElementById('mb-cfg-status');
+
+    if (!d.configured) {
+      if (cfgStatus) { cfgStatus.textContent = '⚠️ Credenciais não configuradas. Preencha abaixo para ver o saldo da conta.'; cfgStatus.style.color='var(--muted)'; }
+      return;
+    }
+    if (cfgStatus) { cfgStatus.textContent = '✓ API Mercado Bitcoin configurada'; cfgStatus.style.color='var(--green)'; }
+
+    if (d.error) {
+      if (block) block.style.display = 'block';
+      const errEl = document.getElementById('mb-saldo-err');
+      if (errEl) { errEl.style.display='block'; errEl.textContent = d.error; }
+      return;
+    }
+
+    if (block) block.style.display = 'block';
+    const btcEl = document.getElementById('mb-saldo-btc');
+    const brlEl = document.getElementById('mb-saldo-brl');
+    if (btcEl) btcEl.textContent = parseFloat(d.btc_balance).toFixed(8) + ' BTC';
+    if (brlEl) brlEl.textContent = 'R$ ' + fmt(d.brl_balance);
+  } catch(e) { console.error('[MB conta] exception:', e); }
+}
+
+async function loadMbFearGreed() {
+  try {
+    const r = await fetch('https://api.alternative.me/fng/?limit=1');
+    const d = await r.json();
+    const item = (d.data || [])[0];
+    if (!item) return;
+    const val = parseInt(item.value, 10);
+    const {chip, label} = fgStyle(val);
+
+    const valEl   = document.getElementById('mb-fg-val');
+    const lblEl   = document.getElementById('mb-fg-label');
+    const chipEl  = document.getElementById('mb-fg-chip');
+    if (valEl)  valEl.textContent  = val;
+    if (lblEl)  lblEl.textContent  = label;
+    if (chipEl) { chipEl.className = 'chip ' + chip; chipEl.textContent = label; }
+  } catch(e) { console.warn('[FG]', e); }
+}
+
+async function loadMbConfig() {
+  try {
+    const r = await fetch('/api/config/mb');
+    const d = await r.json();
+    if (d.configured && d.mb_api_id) {
+      const preview = d.mb_api_id.slice(0, 8) + '••••••••' + d.mb_api_id.slice(-4);
+      const previewEl = document.getElementById('mb-cfg-id-preview');
+      if (previewEl) previewEl.textContent = preview;
+      document.getElementById('mb-cfg-configured').style.display = 'flex';
+      document.getElementById('mb-cfg-form').style.display = 'none';
+    }
+  } catch(e) { console.warn('[MB config]', e); }
+}
+
+async function saveMbConfig() {
+  const apiId     = document.getElementById('inp-mb-id')?.value.trim();
+  const apiSecret = document.getElementById('inp-mb-secret')?.value.trim();
+  if (!apiId || !apiSecret) { feedback('fb-mb', '⚠️ Preencha API ID e API Secret.', 'warn'); return; }
+  try {
+    const r = await fetch('/api/config/mb', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mb_api_id: apiId, mb_api_secret: apiSecret})
+    });
+    const d = await r.json();
+    d.ok ? feedback('fb-mb', '✅ Credenciais salvas! Recarregando saldo...', 'ok')
+         : feedback('fb-mb', '❌ ' + (d.error || 'Erro ao salvar'), 'error');
+    if (d.ok) { loadMbAll(); loadMbConfig(); }
+  } catch(e) { feedback('fb-mb', '❌ ' + e.message, 'error'); }
+}
+
+function loadMbAll() {
+  console.log('[MB] loadMbAll chamado');
+  loadMbTicker();
+  loadMbOrderbook();
+  loadMbConta();
+  loadMbFearGreed();
 }
 
 // ── BTC CONFIG ───────────────────────────────────────────

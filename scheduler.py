@@ -23,6 +23,22 @@ def send_daily_email():
         print('[Email] Falha ao enviar resumo.')
 
 
+def fetch_and_store_btc_price():
+    """Busca preço atual do BTC no Mercado Bitcoin e persiste no histórico."""
+    try:
+        import requests as req
+        r = req.get('https://www.mercadobitcoin.net/api/BTC/ticker/', timeout=10)
+        ticker = r.json().get('ticker', {})
+        price = float(ticker.get('last', 0))
+        if price > 0:
+            db.insert_btc_price(price)
+            print(f'[BTC] Preço salvo: R$ {price:,.2f}')
+        else:
+            print('[BTC] Preço inválido retornado pela API MB.')
+    except Exception as e:
+        print(f'[BTC] Erro ao buscar/salvar preço: {e}')
+
+
 def check_btc_alerts():
     """Verifica alertas de preço/variação BTC e envia e-mail se necessário (cooldown 3h)."""
     print('[BTC] Verificando alertas...')
@@ -126,8 +142,16 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Coleta de preço BTC a cada hora (no minuto 1 para não conflitar com alertas)
+    scheduler.add_job(
+        fetch_and_store_btc_price,
+        trigger=CronTrigger(minute=1, timezone=TZ),
+        id='btc_price_history',
+        replace_existing=True
+    )
+
     scheduler.start()
-    print('[Scheduler] Jobs iniciados: e-mail diário às 8:30, alertas BTC a cada hora.')
+    print('[Scheduler] Jobs iniciados: e-mail diário às 8:30, alertas BTC e histórico de preço a cada hora.')
 
 
 def stop_scheduler():

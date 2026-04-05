@@ -35,7 +35,7 @@ def send_email(subject: str, html_body: str, to_email: str):
         return False
 
 
-def build_daily_email(crypto_data: dict = None):
+def build_daily_email(crypto_data: dict = None, btc_analysis_html: str = ''):
     yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
     date_label = (datetime.utcnow() - timedelta(days=1)).strftime('%d/%m/%Y')
 
@@ -303,6 +303,9 @@ def build_daily_email(crypto_data: dict = None):
   <!-- BTC DETALHADO -->
   {btc_section_html}
 
+  <!-- BTC ANÁLISE MB -->
+  {btc_analysis_html}
+
   <div style="text-align:center;font-size:11px;color:#444;margin-top:24px">
     Dashboard Financeiro Pessoal · Marcell · Gerado automaticamente às 8:30<br/>
     <a href="https://financas.promoestoque.com.br" style="color:#00b1ea">
@@ -402,6 +405,114 @@ def build_btc_alert_email(price_brl: float, change_pct: float, motivo: str, chan
     return html
 
 
+def _build_btc_analysis_section() -> str:
+    """Monta seção HTML com análise BTC para o e-mail diário."""
+    # Preço atual do MB
+    import requests as req
+    try:
+        r       = req.get('https://www.mercadobitcoin.net/api/BTC/ticker/', timeout=10)
+        ticker  = r.json().get('ticker', {})
+        btc_now = float(ticker.get('last', 0))
+    except Exception:
+        btc_now = 0
+
+    # Médias móveis do banco de dados
+    history_7  = db.get_btc_price_history(7)
+    history_30 = db.get_btc_price_history(30)
+    ma7  = sum(r['price'] for r in history_7)  / len(history_7)  if history_7  else None
+    ma30 = sum(r['price'] for r in history_30) / len(history_30) if history_30 else None
+
+    # Fear & Greed index
+    fg_value = None
+    fg_label = ''
+    try:
+        fg_r    = req.get('https://api.alternative.me/fng/?limit=1', timeout=8)
+        fg_data = fg_r.json().get('data', [{}])[0]
+        fg_value = int(fg_data.get('value', 0))
+        fg_label = fg_data.get('value_classification', '')
+    except Exception:
+        pass
+
+    # Badge color para F&G
+    if fg_value is not None:
+        if fg_value < 25:
+            fg_color = '#ff4569'
+            fg_label_pt = 'Medo Extremo'
+        elif fg_value < 45:
+            fg_color = '#ff9100'
+            fg_label_pt = 'Medo'
+        elif fg_value < 55:
+            fg_color = '#ffd600'
+            fg_label_pt = 'Neutro'
+        elif fg_value < 75:
+            fg_color = '#a5d6a7'
+            fg_label_pt = 'Ganância'
+        else:
+            fg_color = '#00e676'
+            fg_label_pt = 'Ganância Extrema'
+    else:
+        fg_color    = '#6b6b88'
+        fg_label_pt = 'N/D'
+
+    SELIC_AA = 10.75
+
+    # Dica inteligente
+    dica = ''
+    if fg_value is not None and fg_value < 25:
+        dica = '💡 Fear &amp; Greed abaixo de 25 — possível ponto de acumulação.'
+    elif ma30 and btc_now > 0 and ((btc_now - ma30) / ma30 * 100) > 20:
+        dica = '⚠️ Preço mais de 20% acima da MA30 — mercado possivelmente sobreaquecido.'
+
+    def _row(label, val_html):
+        return (
+            f'<tr>'
+            f'<td style="padding:7px 0;border-bottom:1px solid #1e1e2e;font-size:13px;color:#ccc">{label}</td>'
+            f'<td style="padding:7px 0;border-bottom:1px solid #1e1e2e;text-align:right">{val_html}</td>'
+            f'</tr>'
+        )
+
+    rows = ''
+    if btc_now:
+        rows += _row('Preço atual (BRL)',
+                     f'<span style="font-size:14px;font-weight:700;color:#eee">R$ {btc_now:,.2f}</span>')
+    if ma7:
+        above = btc_now >= ma7 if btc_now else True
+        c = '#00e676' if above else '#ff4569'
+        rows += _row('Média móvel 7d (MA7)',
+                     f'<span style="font-size:13px;font-weight:600;color:{c}">R$ {ma7:,.2f}</span>')
+    if ma30:
+        above30 = btc_now >= ma30 if btc_now else True
+        c30 = '#00e676' if above30 else '#ff4569'
+        var30 = ((btc_now - ma30) / ma30 * 100) if btc_now else 0
+        sign  = '+' if var30 >= 0 else ''
+        rows += _row('Média móvel 30d (MA30)',
+                     f'<span style="font-size:13px;font-weight:600;color:{c30}">R$ {ma30:,.2f} ({sign}{var30:.1f}%)</span>')
+
+    if fg_value is not None:
+        rows += _row('Fear &amp; Greed Index',
+                     f'<span style="font-size:13px;font-weight:600;color:{fg_color}">{fg_value} — {fg_label_pt}</span>')
+
+    rows += _row('SELIC (referência renda fixa)',
+                 f'<span style="font-size:13px;color:#ccc">{SELIC_AA:.2f}% a.a.</span>')
+
+    dica_html = ''
+    if dica:
+        dica_html = (
+            f'<div style="background:rgba(0,177,234,0.07);border:1px solid rgba(0,177,234,0.2);'
+            f'border-radius:8px;padding:10px 14px;margin-top:12px;font-size:12px;color:#999;line-height:1.5">'
+            f'{dica}</div>'
+        )
+
+    return (
+        f'<div style="background:#16161f;border:1px solid rgba(255,255,255,0.07);'
+        f'border-radius:14px;padding:20px;margin-bottom:14px">'
+        f'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b6b88;margin-bottom:14px">₿ Análise BTC — Mercado Bitcoin</div>'
+        f'<table style="width:100%;border-collapse:collapse">{rows}</table>'
+        f'{dica_html}'
+        f'</div>'
+    )
+
+
 def send_daily_summary():
     to_email = db.get_config('email_destinatario') or 'marcellnicson@gmail.com'
 
@@ -419,8 +530,14 @@ def send_daily_summary():
     except Exception as e:
         print(f'[Email] Não foi possível buscar crypto: {e}')
 
+    btc_analysis_html = ''
+    try:
+        btc_analysis_html = _build_btc_analysis_section()
+    except Exception as e:
+        print(f'[Email] Erro ao montar seção BTC: {e}')
+
     date_label = (datetime.utcnow() - timedelta(days=1)).strftime('%d/%m/%Y')
     subject    = f'📊 Resumo Financeiro — {date_label}'
-    html_body  = build_daily_email(crypto_data)
+    html_body  = build_daily_email(crypto_data, btc_analysis_html)
 
     return send_email(subject, html_body, to_email)

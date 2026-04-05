@@ -37,6 +37,12 @@ def init_db():
                 total      REAL,
                 synced_at  DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS btc_price_history (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                price     REAL NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         ''')
     print('[DB] Banco iniciado em', DB_PATH)
 
@@ -181,6 +187,27 @@ def update_transaction(tx_id, data):
 def delete_transaction(tx_id):
     with get_conn() as conn:
         conn.execute('DELETE FROM transactions WHERE id = ?', (tx_id,))
+
+
+# ── BTC PRICE HISTORY ────────────────────────────────────
+
+def insert_btc_price(price: float):
+    with get_conn() as conn:
+        conn.execute(
+            'INSERT INTO btc_price_history (price) VALUES (?)',
+            (price,)
+        )
+
+
+def get_btc_price_history(days: int = 30) -> list:
+    with get_conn() as conn:
+        rows = conn.execute(
+            '''SELECT price, timestamp FROM btc_price_history
+               WHERE timestamp >= datetime('now', ? || ' days')
+               ORDER BY timestamp ASC''',
+            (f'-{days}',)
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 def recategorize_all(categorize_fn):

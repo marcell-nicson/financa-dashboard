@@ -5,6 +5,11 @@ import requests as req
 import os
 import io
 import csv
+import time
+import hmac
+import hashlib
+import base64
+import json
 from datetime import datetime
 import database as db
 
@@ -328,16 +333,19 @@ def save_investimento_pct():
 @app.route('/api/crypto')
 @login_required
 def crypto():
-    try:
-        r = req.get(
-            'https://api.coingecko.com/api/v3/simple/price'
-            '?ids=bitcoin,ethereum,solana,binancecoin'
-            '&vs_currencies=brl&include_24hr_change=true',
-            timeout=10
-        )
-        return jsonify(r.json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    symbols = ['BTC', 'ETH', 'SOL', 'XRP']
+    result = {}
+    for symbol in symbols:
+        try:
+            r = req.get(f'https://www.mercadobitcoin.net/api/{symbol}/ticker/', timeout=8)
+            t = r.json().get('ticker', {})
+            last = float(t.get('last', 0))
+            open_ = float(t.get('open', 0))
+            change = round((last - open_) / open_ * 100, 2) if open_ else 0
+            result[symbol] = {'brl': last, 'brl_24h_change': change}
+        except Exception:
+            pass
+    return jsonify(result)
 
 
 # ── CONFIG: BTC ───────────────────────────────────────────
@@ -369,6 +377,164 @@ def save_btc_config():
         value = data.get(json_key, '')
         db.set_config(config_key, str(value).strip())
     return jsonify({'ok': True})
+
+
+# ── CONFIG: MERCADO BITCOIN ──────────────────────────────
+
+@app.route('/api/config/mb', methods=['GET'])
+@login_required
+def get_mb_config():
+    api_id = db.get_config('mb_api_id') or ''
+    return jsonify({
+        'mb_api_id':     api_id,
+        'configured':    bool(api_id),
+        # never expose the secret
+    })
+
+
+@app.route('/api/config/mb', methods=['POST'])
+@login_required
+def save_mb_config():
+    data   = request.get_json(silent=True) or {}
+    api_id = data.get('mb_api_id', '').strip()
+    secret = data.get('mb_api_secret', '').strip()
+    if not api_id or not secret:
+        return jsonify({'error': 'mb_api_id e mb_api_secret são obrigatórios'}), 400
+    db.set_config('mb_api_id',     api_id)
+    db.set_config('mb_api_secret', secret)
+    return jsonify({'ok': True})
+
+
+def _mb_get_token(api_id: str, api_secret: str) -> str:
+    """Obtém access_token da MB API v4 via endpoint de autorização."""
+    r = req.post(
+        'https://api.mercadobitcoin.net/api/v4/authorize',
+        json={'login': api_id, 'password': api_secret},
+        timeout=10
+    )
+    r.raise_for_status()
+    return r.json()['access_token']
+
+
+def _btc_moving_avg(days: int) -> float | None:
+    history = db.get_btc_price_history(days)
+    if not history:
+        return None
+    return sum(r['price'] for r in history) / len(history)
+
+
+# ── MERCADO BITCOIN: TICKER ──────────────────────────────
+
+@app.route('/api/mercadobitcoin/ticker')
+@login_required
+def mb_ticker():
+    try:
+        r = req.get('https://www.mercadobitcoin.net/api/BTC/ticker/', timeout=10)
+        r.raise_for_status()
+        ticker = r.json().get('ticker', {})
+    except Exception as e:
+        return jsonify({'error': f'Erro ao buscar ticker MB: {e}'}), 502
+
+    last = float(ticker.get('last', 0))
+    ma7  = _btc_moving_avg(7)
+    ma30 = _btc_moving_avg(30)
+
+    variation_from_ma30 = None
+    if ma30 and ma30 > 0:
+        variation_from_ma30 = round((last - ma30) / ma30 * 100, 2)
+
+    return jsonify({
+        'last':                  last,
+        'high':                  float(ticker.get('high', 0)),
+        'low':                   float(ticker.get('low', 0)),
+        'vol':                   float(ticker.get('vol', 0)),
+        'date':                  ticker.get('date'),
+        'ma7':                   round(ma7, 2)  if ma7  else None,
+        'ma30':                  round(ma30, 2) if ma30 else None,
+        'variation_pct_from_ma30': variation_from_ma30,
+    })
+
+
+# ── MERCADO BITCOIN: ORDERBOOK ───────────────────────────
+
+@app.route('/api/mercadobitcoin/orderbook')
+@login_required
+def mb_orderbook():
+    try:
+        r = req.get('https://www.mercadobitcoin.net/api/BTC/orderbook/', timeout=10)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        return jsonify({'error': f'Erro ao buscar orderbook MB: {e}'}), 502
+
+    bids = [[float(p), float(q)] for p, q in data.get('bids', [])[:5]]
+    asks = [[float(p), float(q)] for p, q in data.get('asks', [])[:5]]
+
+    spread     = None
+    spread_pct = None
+    if asks and bids:
+        best_ask   = asks[0][0]
+        best_bid   = bids[0][0]
+        spread     = round(best_ask - best_bid, 2)
+        spread_pct = round(spread / best_bid * 100, 4) if best_bid > 0 else None
+
+    return jsonify({
+        'bids':       bids,
+        'asks':       asks,
+        'spread':     spread,
+        'spread_pct': spread_pct,
+    })
+
+
+# ── MERCADO BITCOIN: CONTA ───────────────────────────────
+
+@app.route('/api/mercadobitcoin/conta')
+@login_required
+def mb_conta():
+    api_id     = db.get_config('mb_api_id')
+    api_secret = db.get_config('mb_api_secret')
+    if not api_id or not api_secret:
+        return jsonify({'configured': False})
+
+    try:
+        token = _mb_get_token(api_id, api_secret)
+        r = req.get(
+            'https://api.mercadobitcoin.net/api/v4/accounts',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=10
+        )
+        r.raise_for_status()
+        accounts = r.json()
+        account_id = accounts[0]['id'] if isinstance(accounts, list) and accounts else None
+        if not account_id:
+            return jsonify({'configured': True, 'error': 'Nenhuma conta encontrada'}), 502
+        r2 = req.get(
+            f'https://api.mercadobitcoin.net/api/v4/accounts/{account_id}/balances',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=10
+        )
+        r2.raise_for_status()
+        balances = r2.json()
+    except Exception as e:
+        return jsonify({'configured': True, 'error': f'Erro ao buscar saldo MB: {e}'}), 502
+
+    btc_balance = 0.0
+    brl_balance = 0.0
+    for b in balances if isinstance(balances, list) else []:
+        symbol    = b.get('symbol', '')
+        available = float(b.get('available', 0) or 0)
+        on_hold   = float(b.get('on_hold', 0) or 0)
+        total     = available + on_hold
+        if symbol == 'BTC':
+            btc_balance = total
+        elif symbol == 'BRL':
+            brl_balance = total
+
+    return jsonify({
+        'configured':    True,
+        'btc_balance':   btc_balance,
+        'brl_balance':   brl_balance,
+    })
 
 
 # ── TEST EMAIL ───────────────────────────────────────────
